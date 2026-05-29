@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(scriptDir, "..");
-const sourceRoot = path.resolve(siteRoot, "..");
-const siteDataPath = path.join(siteRoot, "data", "site-data.json");
+const sourceRoot = path.resolve(process.env.CONTENT_ROOT || path.resolve(siteRoot, "..", "学科地图-content"));
+const siteDataPath = path.resolve(process.env.SITE_DATA_PATH || path.join(siteRoot, "data", "site-data.json"));
 const greenSpanPattern = /<span\s+style=(["'])color:\s*#50946e;\1>([\s\S]*?)<\/span>/gi;
 const cliShouldWrite = globalThis.process?.argv?.includes("--write") ?? false;
 const maxMarks = 3;

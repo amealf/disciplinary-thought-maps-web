@@ -4,15 +4,16 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(scriptDir, "..");
-const sourceRoot = path.resolve(siteRoot, "..");
-const pluginConfigPath = path.join(
+const sourceRoot = path.resolve(process.env.CONTENT_ROOT || path.resolve(siteRoot, "..", "学科地图-content"));
+const defaultPluginConfigPath = path.join(
   sourceRoot,
-  "哲学",
-  "伦理学",
   ".obsidian",
   "plugins",
   "highlightr-plugin",
   "data.json",
+);
+const pluginConfigPath = path.join(
+  process.env.HIGHLIGHTR_CONFIG_PATH || defaultPluginConfigPath,
 );
 const ignoredDirs = new Set(["site", ".git", "node_modules", ".obsidian", "__pycache__"]);
 const shouldWrite = process.argv.includes("--write");
