@@ -5,6 +5,18 @@
 - GitHub Markdown 仓库：`D:\学科地图-content`
 - Notion API：可选，需要配置 Notion token 和数据源 ID
 
+GitHub 仓库：
+
+```text
+https://github.com/amealf/disciplinary-thought-maps-web
+```
+
+公网地址：
+
+```text
+https://amealf.github.io/disciplinary-thought-maps-web/
+```
+
 本地构建：
 
 ```powershell
@@ -25,13 +37,13 @@ GitHub Pages 发布时，Actions 会检出内容仓库，运行 `node scripts/bu
 需要在网站仓库设置变量：
 
 ```text
-CONTENT_REPOSITORY
+CONTENT_REPOSITORY=amealf/disciplinary-thought-maps-content
 ```
 
 需要在内容仓库设置变量：
 
 ```text
-WEB_REPOSITORY
+WEB_REPOSITORY=amealf/disciplinary-thought-maps-web
 ```
 
 Notion 来源需要在网站仓库设置：
