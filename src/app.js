@@ -843,6 +843,13 @@ function renderHomePage() {
           </div>
         </section>
       </div>
+      <footer class="home-footer" aria-label="Project links">
+        <div class="home-footer-links">
+          <a href="https://github.com/amealf/disciplinary-thought-maps-web" target="_blank" rel="noopener noreferrer">Website Repository</a>
+          <a href="https://github.com/amealf/disciplinary-thought-maps-content" target="_blank" rel="noopener noreferrer">Content Repository</a>
+        </div>
+        <div class="home-footer-credit">Designed by Yilimi</div>
+      </footer>
     </main>
   `;
 
@@ -1561,9 +1568,6 @@ function renderSubjectPage(subjectId) {
           <button class="search-submit" type="button" data-action="subject-search-toggle" title="Search" aria-label="${searchOpen ? "Search" : "Open search"}">⌕</button>
         </form>
         <div class="toolbar-actions">
-          <div class="segmented" aria-label="Map perspective">
-            <button class="active" type="button">Directory Order</button>
-          </div>
           ${renderThemeControls()}
         </div>
       </section>
