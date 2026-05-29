@@ -1,0 +1,9 @@
+dist/
+data/
+node_modules/
+.env
+*.log
+server.log
+server.err.log
+server-output.log
+server-error.log

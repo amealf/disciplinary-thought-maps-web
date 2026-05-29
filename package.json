@@ -1,0 +1,13 @@
+{
+  "name": "disciplinary-thought-maps",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-site.mjs",
+    "generate": "node scripts/generate-data.mjs",
+    "serve": "node scripts/server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

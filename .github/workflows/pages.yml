@@ -1,0 +1,70 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  repository_dispatch:
+    types: [content-updated]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout website
+        uses: actions/checkout@v4
+
+      - name: Checkout content
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.CONTENT_REPOSITORY }}
+          token: ${{ secrets.CONTENT_REPO_TOKEN || github.token }}
+          path: content
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Build static site
+        env:
+          CONTENT_ROOT: ${{ github.workspace }}/content
+          CONTENT_ROOT_LABEL: github-content
+          SITE_OUTPUT_ROOT: ${{ github.workspace }}/dist
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_VERSION: ${{ vars.NOTION_VERSION || '2026-03-11' }}
+          NOTION_DATA_SOURCE_ID: ${{ vars.NOTION_DATA_SOURCE_ID }}
+          NOTION_DATABASE_ID: ${{ vars.NOTION_DATABASE_ID }}
+          NOTION_PAGE_IDS: ${{ vars.NOTION_PAGE_IDS }}
+          NOTION_DEFAULT_SUBJECT: ${{ vars.NOTION_DEFAULT_SUBJECT || 'Notion' }}
+          NOTION_INCLUDE_STATUSES: ${{ vars.NOTION_INCLUDE_STATUSES }}
+          NOTION_INCLUDE_VISIBILITY: ${{ vars.NOTION_INCLUDE_VISIBILITY }}
+        run: node scripts/build-site.mjs
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
