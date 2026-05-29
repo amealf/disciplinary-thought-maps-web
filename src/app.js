@@ -820,7 +820,7 @@ function renderHomePage() {
               />
               <div class="home-suggestions" id="home-suggestions" role="listbox"></div>
             </form>
-            <a class="home-all-entries-link" href="#/disciplines">All Subjects</a>
+            <a class="home-all-entries-link" href="#/disciplines">All Existing Disciplines</a>
           </div>
         </section>
 
@@ -966,7 +966,7 @@ function renderHomeGroupPage(groupId) {
     <div class="app-shell subject-page">
       <section class="subject-toolbar">
         <div class="subject-heading">
-          <a class="back-link icon-only" href="#/disciplines" title="All topics" aria-label="All topics">
+          <a class="back-link icon-only" href="#/disciplines" title="All disciplines" aria-label="All disciplines">
             <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 10.8 12 3l9 7.8" />
               <path d="M5.5 10.5V21h13V10.5" />
@@ -1410,12 +1410,12 @@ function renderAllDisciplinesPage() {
       <main class="entries-page disciplines-page">
       <section class="entries-hero">
         <p class="entries-kicker">Full Index</p>
-        <h1>All Existing Topics</h1>
-        <p class="entries-intro">Markdown directory topics and subject maps.</p>
+        <h1>All Existing Disciplines</h1>
+        <p class="entries-intro">Markdown and Notion discipline maps.</p>
         <div class="discipline-hero-row">
           <div class="entries-stats">
             <a class="entry-stat entry-stat-total all-topics-option ${selectedLevel === "all" ? "active" : ""}" href="#/disciplines?level=all" aria-current="${selectedLevel === "all" ? "true" : "false"}">
-              <span>All Topics</span>
+              <span>All Disciplines</span>
               <strong>${allTopicCount}</strong>
             </a>
             ${renderHeadingLevelFilter(selectedLevel)}
@@ -1431,7 +1431,7 @@ function renderAllDisciplinesPage() {
           </div>
         </div>
       </section>
-      <section class="discipline-board" aria-label="All existing topics">
+      <section class="discipline-board" aria-label="All existing disciplines">
         <div class="discipline-grid">
           ${disciplines.map((discipline) => `
             <a class="discipline-card" href="${escapeHtml(discipline.href)}" data-discipline-card data-title="${escapeHtml(discipline.displayTitle)}" style="--discipline-accent: ${escapeHtml(discipline.accentColor)}">
