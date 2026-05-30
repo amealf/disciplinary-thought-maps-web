@@ -1,6 +1,8 @@
 const DATA_URL = "./data/site-data.json";
 const app = document.querySelector("#app");
 const DEFAULT_MAP_SCALE = 0.84 * 0.84 * 0.84 * 0.84 * 0.84 * 1.15 * 1.18 * 1.18 * 1.18 * 1.18 * 0.9 * 1.18 * 1.08;
+const TABLET_MAP_SCALE = 0.82;
+const MOBILE_MAP_SCALE = 0.66;
 const HOME_RANDOM_TITLE_COUNT = 24;
 const MIND_PRIMARY_MAX_CHARS = 30;
 const THEME_STORAGE_KEY = "discipline-map-theme";
@@ -20,7 +22,7 @@ const state = {
   shouldCenterActiveNode: false, // 专门负责面包屑/外部跳转回地图时的镜头自动高光对焦
   subjectQuery: "",
   subjectSearchOpen: false,
-  mapTransform: { x: 0, y: 0, scale: DEFAULT_MAP_SCALE },
+  mapTransform: { x: 0, y: 0, scale: getDefaultMapScale() },
   mapFitActive: false,
   mapFitResetTransform: null,
   mobileReaderOpen: true,
@@ -40,6 +42,13 @@ const state = {
 };
 
 applyTheme();
+
+function getDefaultMapScale() {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1024;
+  if (viewportWidth <= 620) return MOBILE_MAP_SCALE;
+  if (viewportWidth <= 980) return TABLET_MAP_SCALE;
+  return DEFAULT_MAP_SCALE;
+}
 
 const typeLabels = {
   subject: "Subject",
@@ -383,7 +392,7 @@ function setRoute() {
         state.selectedArticleId = null;
         state.subjectQuery = "";
         state.subjectSearchOpen = false;
-        state.mapTransform = { x: 0, y: 0, scale: DEFAULT_MAP_SCALE };
+        state.mapTransform = { x: 0, y: 0, scale: getDefaultMapScale() };
         state.mapFitActive = false;
         state.mapFitResetTransform = null;
         state.currentSubjectId = subject.id;
@@ -643,7 +652,7 @@ function revealNode(nodeId) {
 }
 
 function resetMapView() {
-  state.mapTransform = { x: 0, y: 0, scale: DEFAULT_MAP_SCALE };
+  state.mapTransform = { x: 0, y: 0, scale: getDefaultMapScale() };
   state.mapFitActive = false;
   state.mapFitResetTransform = null;
   if (state.route.name === "subject" && state.route.subjectId) {
@@ -820,7 +829,7 @@ function renderHomePage() {
               />
               <div class="home-suggestions" id="home-suggestions" role="listbox"></div>
             </form>
-            <a class="home-all-entries-link" href="#/disciplines">All Existing Disciplines</a>
+            <a class="home-all-entries-link" href="#/disciplines">All Subjects</a>
           </div>
         </section>
 
@@ -965,7 +974,7 @@ function renderHomeGroupPage(groupId) {
   state.expanded = new Set(directorySubject.directoryNodeIds.filter((nodeId) => getNode(nodeId)?.childrenIds.length));
   state.activeNodeId = directorySubject.activeNodeId;
   state.selectedArticleId = null;
-  state.mapTransform = { x: 0, y: 0, scale: DEFAULT_MAP_SCALE };
+  state.mapTransform = { x: 0, y: 0, scale: getDefaultMapScale() };
   state.mapFitActive = false;
   state.mapFitResetTransform = null;
 
@@ -973,7 +982,7 @@ function renderHomeGroupPage(groupId) {
     <div class="app-shell subject-page">
       <section class="subject-toolbar">
         <div class="subject-heading">
-          <a class="back-link icon-only" href="#/disciplines" title="All disciplines" aria-label="All disciplines">
+          <a class="back-link icon-only" href="#/disciplines" title="All topics" aria-label="All topics">
             <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 10.8 12 3l9 7.8" />
               <path d="M5.5 10.5V21h13V10.5" />
@@ -1417,12 +1426,12 @@ function renderAllDisciplinesPage() {
       <main class="entries-page disciplines-page">
       <section class="entries-hero">
         <p class="entries-kicker">Full Index</p>
-        <h1>All Existing Disciplines</h1>
-        <p class="entries-intro">Markdown and Notion discipline maps.</p>
+        <h1>All Existing Topics</h1>
+        <p class="entries-intro">Markdown directory topics and subject maps.</p>
         <div class="discipline-hero-row">
           <div class="entries-stats">
             <a class="entry-stat entry-stat-total all-topics-option ${selectedLevel === "all" ? "active" : ""}" href="#/disciplines?level=all" aria-current="${selectedLevel === "all" ? "true" : "false"}">
-              <span>All Disciplines</span>
+              <span>All Topics</span>
               <strong>${allTopicCount}</strong>
             </a>
             ${renderHeadingLevelFilter(selectedLevel)}
@@ -1438,7 +1447,7 @@ function renderAllDisciplinesPage() {
           </div>
         </div>
       </section>
-      <section class="discipline-board" aria-label="All existing disciplines">
+      <section class="discipline-board" aria-label="All existing topics">
         <div class="discipline-grid">
           ${disciplines.map((discipline) => `
             <a class="discipline-card" href="${escapeHtml(discipline.href)}" data-discipline-card data-title="${escapeHtml(discipline.displayTitle)}" style="--discipline-accent: ${escapeHtml(discipline.accentColor)}">
@@ -2156,7 +2165,7 @@ function renderGraph(subject) {
   renderSubjectPending = subject;
   if (isRenderPending) return;
   isRenderPending = true;
-  requestAnimationFrame(() => {
+  window.setTimeout(() => {
     isRenderPending = false;
     if (renderSubjectPending) {
       const currentRoute = state.route;
@@ -2166,7 +2175,7 @@ function renderGraph(subject) {
         doRenderGraph(renderSubjectPending);
       }
     }
-  });
+  }, 0);
 }
 
 function doRenderGraph(subject) {
@@ -2814,7 +2823,7 @@ function bindGraphEvents(svg, subject) {
           state.mapTransform = { x, y, scale: targetScale };
         }
       } else {
-        state.mapTransform = { x: 0, y: 0, scale: DEFAULT_MAP_SCALE };
+        state.mapTransform = { x: 0, y: 0, scale: getDefaultMapScale() };
       }
 
       state.mapFitActive = false;

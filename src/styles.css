@@ -4600,3 +4600,296 @@ body[data-palette="plain"][data-tone="light"] .home-explore-tag:hover {
 body[data-palette="plain"][data-tone="light"] .home-explore-tag .tag-dot {
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.4) !important;
 }
+
+/* Responsive layout overrides */
+html,
+body {
+  overflow-x: hidden;
+}
+
+.result-title span:last-child,
+.section-title h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-layout.reader-hidden .reader-panel {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .category-grid,
+  .discipline-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .explore-panel {
+    width: min(1100px, calc(100% - clamp(28px, 6vw, 72px)));
+    padding: clamp(1.4rem, 3.2vw, 2.5rem);
+  }
+}
+
+@media (max-width: 900px) {
+  .map-layout,
+  .map-layout.reader-hidden {
+    grid-template-columns: 1fr;
+  }
+
+  .reader-panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 30;
+    max-height: 74vh;
+    border-top: 1px solid #d9dee8;
+    border-left: 0;
+    box-shadow: 0 -18px 45px rgba(22, 30, 52, 0.18);
+    transform: translateY(0);
+  }
+
+  .reader-panel.mobile-hidden {
+    transform: translateY(calc(100% - 54px));
+  }
+
+  .reader-content {
+    height: 74vh;
+  }
+
+  .mobile-reader-toggle {
+    display: inline-flex;
+  }
+
+  .map-area,
+  .graph-svg {
+    min-height: calc(100vh - 220px);
+  }
+}
+
+@media (max-width: 767px) {
+  .learn-home .container {
+    padding: 0 14px;
+  }
+
+  .explore-panel {
+    width: 100%;
+    margin-bottom: 3.4rem;
+    border-radius: 22px;
+  }
+
+  .explore-tag-cloud {
+    gap: 0.95rem;
+    padding: 0.35rem 0 0.35rem 2.75rem;
+  }
+
+  .explore-tag-cloud::before {
+    left: 1.28rem;
+  }
+
+  .home-explore-tag {
+    min-width: 0;
+    padding: 0.86rem 1rem;
+  }
+
+  .tag-circle {
+    left: -1.46rem;
+    width: 15px;
+    height: 15px;
+  }
+
+  .tag-content-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tag-label,
+  .tag-sub-label {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .tag-label {
+    font-size: 1rem;
+  }
+
+  .top-strip,
+  .subject-toolbar,
+  .obsidian-topbar {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .subject-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .subject-map-title {
+    text-align: left;
+  }
+
+  .toolbar-actions .segmented {
+    display: none;
+  }
+
+  .floating-map-controls {
+    max-width: calc(100vw - 28px);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .map-icon-button.fit-screen-button {
+    padding: 0 9px;
+  }
+
+  .obsidian-path-container {
+    padding: 12px 16px 0;
+    margin-bottom: 28px;
+  }
+
+  .obsidian-topbar-path {
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .obsidian-topbar-node {
+    max-width: 62vw;
+  }
+
+  .obsidian-document {
+    width: calc(100% - 32px);
+    padding: 0 0 96px;
+  }
+
+  .markdown-body {
+    padding: 20px 20px 52px;
+  }
+}
+
+@media (max-width: 620px) {
+  .home-theme-bar {
+    min-height: 54px;
+  }
+
+  .home-all-entries-link,
+  .explore-refresh-bar-btn {
+    width: 100%;
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .home-suggestions {
+    max-height: min(52vh, 420px);
+    overflow-y: auto;
+  }
+
+  .entries-page {
+    padding-top: 28px;
+    padding-bottom: 56px;
+  }
+
+  .discipline-hero-row {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .entries-hero,
+  .entries-board,
+  .discipline-board {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .entries-stats {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: visible;
+    padding-bottom: 4px;
+  }
+
+  .entry-stat,
+  .heading-level-option,
+  .all-topics-option {
+    flex: 0 0 auto;
+  }
+
+  .heading-level-filter {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .discipline-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .discipline-card {
+    min-height: 118px;
+    padding: 20px;
+  }
+
+  .discipline-card:hover,
+  .discipline-card:focus-visible {
+    transform: translateY(-3px);
+  }
+
+  .discipline-search.open input {
+    width: min(260px, calc(100vw - 110px));
+  }
+
+  .subject-search.open {
+    width: min(260px, calc(100vw - 128px));
+  }
+
+  .reader-title {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 390px) {
+  .entries-hero,
+  .entries-board,
+  .discipline-board {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .entries-hero h1 {
+    font-size: 34px;
+  }
+
+  .disciplines-page .entries-hero h1 {
+    font-size: 30px;
+  }
+
+  .home-hero-title {
+    font-size: 36px;
+  }
+
+  .theme-toggle-icon {
+    width: 32px;
+    min-width: 32px;
+  }
+}
+
+@media (max-width: 340px) {
+  .home-theme-brand>span:last-child {
+    max-width: 108px;
+  }
+
+  .subject-toolbar {
+    gap: 8px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .toolbar-actions .theme-toggle-icon:last-child {
+    display: none;
+  }
+}
