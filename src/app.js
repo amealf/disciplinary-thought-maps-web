@@ -20,6 +20,7 @@ const state = {
   activeNodeId: null,
   selectedArticleId: null,
   shouldCenterActiveNode: false, // 专门负责面包屑/外部跳转回地图时的镜头自动高光对焦
+  shouldSnapCenterActiveNode: false,
   subjectQuery: "",
   subjectSearchOpen: false,
   mapTransform: { x: 0, y: 0, scale: getDefaultMapScale() },
@@ -34,6 +35,7 @@ const state = {
   graphStep: null,
   previousGraphVisibleIds: new Set(),
   subjectRootOffsets: new Map(),
+  mindNodeBoxCache: new Map(),
   articleContentById: new Map(),
   articleContentLoading: new Set(),
   homeSearchIndex: -1,
@@ -403,6 +405,7 @@ function setRoute() {
       if (nodeId) {
         revealNode(nodeId);
         state.shouldCenterActiveNode = true;
+        state.shouldSnapCenterActiveNode = true;
       }
     }
   } else {
@@ -479,6 +482,11 @@ function getHomeTopic(topicId) {
   return getHomeTopics().find((topic) => topic.id === topicId) ?? null;
 }
 
+function getHomeTopicBySubjectId(subjectId) {
+  if (!subjectId) return null;
+  return getHomeTopics().find((topic) => topic.subjectId === subjectId) ?? null;
+}
+
 function getHomeChildren(topicId) {
   return getHomeTopics().filter((topic) => topic.parentId === topicId);
 }
@@ -510,6 +518,45 @@ function getHomeTopicHref(topic) {
   const targetHref = getHomeTopicTargetHref(topic);
   if (targetHref) return targetHref;
   return `#/missing?q=${encodeURIComponent(topic.title)}`;
+}
+
+function getSubjectParentHomeTopic(subjectId) {
+  const topic = getHomeTopicBySubjectId(subjectId);
+  return topic?.parentId ? getHomeTopic(topic.parentId) : null;
+}
+
+function renderToolbarBackLink(topic) {
+  if (!topic) return "";
+  const label = `Back to ${cleanDisplayText(topic.title)}`;
+  return `
+    <a class="back-link icon-only" href="${escapeHtml(getHomeTopicHref(topic))}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
+      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </a>
+  `;
+}
+
+function renderToolbarBackToSubjectsLink() {
+  return `
+    <a class="back-link icon-only" href="#/disciplines" title="Back to All Subjects" aria-label="Back to All Subjects">
+      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </a>
+  `;
+}
+
+function renderToolbarHomeLink(href = "#/") {
+  return `
+    <a class="back-link icon-only" href="${escapeHtml(href)}" title="Home" aria-label="Home">
+      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 10.8 12 3l9 7.8" />
+        <path d="M5.5 10.5V21h13V10.5" />
+        <path d="M9.5 21v-6h5v6" />
+      </svg>
+    </a>
+  `;
 }
 
 function getDirectoryNodeId(groupId, topicId) {
@@ -585,6 +632,14 @@ function buildDirectoryMapSubject(groupId) {
 function getRandomHomeTitleTopics(count = HOME_RANDOM_TITLE_COUNT) {
   const entries = state.data?.searchEntries ?? [];
   const unique = new Map();
+  const shuffleItems = (items) => {
+    const result = [...items];
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+    }
+    return result;
+  };
 
   for (const entry of entries) {
     if (entry.type !== "article") continue; // 只随机所有文档 (articles)
@@ -592,12 +647,14 @@ function getRandomHomeTitleTopics(count = HOME_RANDOM_TITLE_COUNT) {
     const key = normalizeText(title);
     if (!title || !key || unique.has(key)) continue;
 
+    const subject = getSubject(entry.subjectId);
+    const subjectText = normalizeText(`${subject?.title ?? ""} ${subject?.path ?? ""} ${subject?.homeKey ?? ""}`);
     let categoryType = "philosophy";
-    if (entry.subjectId === "subject-23072b99390f565a") {
+    if (subjectText.includes("文学")) {
       categoryType = "literature";
-    } else if (entry.subjectId === "subject-7147fd88b340a6b7" || entry.subjectId === "subject-4057abf31d7abfd3") {
+    } else if (subjectText.includes("心理") || subjectText.includes("cpt")) {
       categoryType = "psychology";
-    } else if (entry.subjectId === "subject-479e5e552b3ddf07" || entry.subjectId === "subject-8908d20fcc79bdc8") {
+    } else if (subjectText.includes("哲学") || subjectText.includes("伦理")) {
       categoryType = "philosophy";
     }
 
@@ -606,7 +663,7 @@ function getRandomHomeTitleTopics(count = HOME_RANDOM_TITLE_COUNT) {
       title,
       level: 2,
       parentId: null,
-      subjectId: null,
+      subjectId: entry.subjectId,
       href: pathForResult(entry),
       type: entry.type,
       pathText: entry.pathText, // 保存文档所属各级文件夹名
@@ -615,11 +672,38 @@ function getRandomHomeTitleTopics(count = HOME_RANDOM_TITLE_COUNT) {
   }
 
   const topics = [...unique.values()];
-  for (let index = topics.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [topics[index], topics[swapIndex]] = [topics[swapIndex], topics[index]];
+  const subjectBuckets = new Map();
+  for (const topic of topics) {
+    const fallbackSubject = cleanDisplayText(topic.pathText).split(/\s*\/\s*/)[0] || "unknown";
+    const subjectKey = topic.subjectId || fallbackSubject;
+    if (!subjectBuckets.has(subjectKey)) subjectBuckets.set(subjectKey, []);
+    subjectBuckets.get(subjectKey).push(topic);
   }
-  return topics.slice(0, count);
+
+  const groups = shuffleItems([...subjectBuckets.entries()].map(([key, items]) => ({
+    key,
+    items: shuffleItems(items),
+  })));
+  const selected = [];
+  let lastGroupKey = "";
+
+  while (selected.length < count && groups.some((group) => group.items.length)) {
+    const activeGroups = shuffleItems(groups.filter((group) => group.items.length));
+    if (activeGroups.length > 1 && activeGroups[0].key === lastGroupKey) {
+      const alternateIndex = activeGroups.findIndex((group) => group.key !== lastGroupKey);
+      [activeGroups[0], activeGroups[alternateIndex]] = [activeGroups[alternateIndex], activeGroups[0]];
+    }
+
+    for (const group of activeGroups) {
+      const topic = group.items.shift();
+      if (!topic) continue;
+      selected.push(topic);
+      lastGroupKey = group.key;
+      if (selected.length >= count) break;
+    }
+  }
+
+  return selected;
 }
 
 function findHomeTopicByQuery(query) {
@@ -971,6 +1055,7 @@ function renderHomeGroupPage(groupId) {
 
   const directorySubject = buildDirectoryMapSubject(group.id);
   if (!directorySubject) return;
+  const parentTopic = getHomeParent(group.id);
   state.expanded = new Set(directorySubject.directoryNodeIds.filter((nodeId) => getNode(nodeId)?.childrenIds.length));
   state.activeNodeId = directorySubject.activeNodeId;
   state.selectedArticleId = null;
@@ -982,13 +1067,8 @@ function renderHomeGroupPage(groupId) {
     <div class="app-shell subject-page">
       <section class="subject-toolbar">
         <div class="subject-heading">
-          <a class="back-link icon-only" href="#/disciplines" title="All topics" aria-label="All topics">
-            <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 10.8 12 3l9 7.8" />
-              <path d="M5.5 10.5V21h13V10.5" />
-              <path d="M9.5 21v-6h5v6" />
-            </svg>
-          </a>
+          ${parentTopic ? renderToolbarBackLink(parentTopic) : renderToolbarBackToSubjectsLink()}
+          ${renderToolbarHomeLink("#/disciplines")}
         </div>
         <div class="subject-map-title">${escapeHtml(cleanDisplayText(group.title))}</div>
         <div class="toolbar-actions">
@@ -1559,18 +1639,15 @@ function renderSubjectPage(subjectId) {
   const selectedArticle = state.selectedArticleId ? getArticle(state.selectedArticleId) : null;
   const mapClass = selectedArticle ? "map-layout" : "map-layout reader-hidden";
   const searchOpen = state.subjectSearchOpen || Boolean(state.subjectQuery.trim());
+  const parentTopic = getSubjectParentHomeTopic(subject.id);
+  const backLink = parentTopic ? renderToolbarBackLink(parentTopic) : renderToolbarBackToSubjectsLink();
 
   app.innerHTML = `
     <div class="app-shell subject-page">
       <section class="subject-toolbar">
         <div class="subject-heading">
-          <a class="back-link icon-only" href="#/" title="Home" aria-label="Home">
-            <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 10.8 12 3l9 7.8" />
-              <path d="M5.5 10.5V21h13V10.5" />
-              <path d="M9.5 21v-6h5v6" />
-            </svg>
-          </a>
+          ${backLink}
+          ${renderToolbarHomeLink()}
         </div>
         <form class="subject-search ${searchOpen ? "open" : ""}" data-action="subject-search">
           <input name="q" value="${escapeHtml(state.subjectQuery)}" placeholder="Search this subject..." autocomplete="off" aria-label="Search this subject" />
@@ -1815,6 +1892,7 @@ function bindSubjectEvents(subject) {
     if (state.selectedArticleId) {
       revealNode(state.selectedArticleId);
       state.shouldCenterActiveNode = true;
+      state.shouldSnapCenterActiveNode = true;
     }
     renderSubjectPage(subject.id);
   });
@@ -1967,7 +2045,7 @@ function getArticleMindTitle(value) {
   };
 }
 
-function getMindNodeBox(node) {
+function calculateMindNodeBox(node) {
   if (node.type === "subject") {
     const titleText = cleanDisplayText(node.title);
     const textWidth = estimateTextWidth([titleText], 36, 56);
@@ -2007,6 +2085,16 @@ function getMindNodeBox(node) {
     width: clampNumber(labelWidth + 38, 220, 560),
     height: Math.max(48, 12 + primaryLines.length * 18 + englishLines.length * 16 + noteLines.length * 15 + articleLineGaps),
   };
+}
+
+function getMindNodeBox(node) {
+  if (!node) return { width: 0, height: 0 };
+  const cacheKey = node.id || `${node.type}:${node.title}:${node.shortTitle}`;
+  const cached = state.mindNodeBoxCache.get(cacheKey);
+  if (cached) return cached;
+  const box = calculateMindNodeBox(node);
+  state.mindNodeBoxCache.set(cacheKey, box);
+  return box;
 }
 
 function getAllNodeIdsInTree(rootId) {
@@ -2160,13 +2248,15 @@ function layoutGraph(subject) {
 
 let isRenderPending = false;
 let renderSubjectPending = null;
+let renderFrameId = null;
 
 function renderGraph(subject) {
   renderSubjectPending = subject;
   if (isRenderPending) return;
   isRenderPending = true;
-  window.setTimeout(() => {
+  renderFrameId = window.requestAnimationFrame(() => {
     isRenderPending = false;
+    renderFrameId = null;
     if (renderSubjectPending) {
       const currentRoute = state.route;
       const isStillInSubject = (currentRoute.name === "subject" && currentRoute.subjectId === renderSubjectPending.id);
@@ -2175,13 +2265,14 @@ function renderGraph(subject) {
         doRenderGraph(renderSubjectPending);
       }
     }
-  }, 0);
+  });
 }
 
 function doRenderGraph(subject) {
   const svg = app.querySelector("[data-graph]");
   const nodeLayer = app.querySelector("[data-node-layer]");
   if (!svg || !nodeLayer) return;
+  const previousPositions = state.positions;
   if (state.graphSubjectId !== subject.id) {
     state.graphSubjectId = subject.id;
     state.previousGraphVisibleIds = new Set();
@@ -2253,9 +2344,12 @@ function doRenderGraph(subject) {
     colorNodeBranch(subject.rootNodeId);
     state.graphAssignedColors = assignedColors;
   }
+  const shouldSnapCenterBeforeLayout = state.shouldSnapCenterActiveNode;
   const { visible, positions, graphSize } = layoutGraph(subject);
   if (state.shouldCenterActiveNode && state.activeNodeId) {
+    const shouldSnapCenter = state.shouldSnapCenterActiveNode;
     state.shouldCenterActiveNode = false;
+    state.shouldSnapCenterActiveNode = false;
     const nodeId = state.activeNodeId;
     const node = getNode(nodeId);
     const pos = positions.get(nodeId);
@@ -2264,16 +2358,19 @@ function doRenderGraph(subject) {
       const areaWidth = mapArea.clientWidth;
       const areaHeight = mapArea.clientHeight;
       const isArticleNode = (node.type === "article");
-      const focusX = isArticleNode ? areaWidth / 3.0 : areaWidth / 2.7;
+      const parentNode = node.parentId ? getNode(node.parentId) : null;
+      const parentPosition = parentNode ? positions.get(parentNode.id) : null;
+      const horizontalPosition = isArticleNode && parentPosition ? parentPosition : pos;
+      const isRootChild = node.parentId === subject.rootNodeId;
+      const focusX = isArticleNode ? Math.max(180, areaWidth * 0.21) : (!isRootChild ? areaWidth / 3.0 : areaWidth / 2.7);
       const focusY = areaHeight / 2;
 
       const currentScale = state.mapTransform.scale;
       const targetScale = clampNumber(currentScale, 0.85, 1.0);
 
-      let x = Math.round(focusX - pos.x * targetScale);
+      let x = Math.round(focusX - horizontalPosition.x * targetScale);
       let y = Math.round(focusY - pos.y * targetScale);
 
-      const parentNode = node.parentId ? getNode(node.parentId) : null;
       const isLevel2 = (parentNode && parentNode.parentId === subject.rootNodeId);
       const branchRootId = (node.type === "article" || isLevel2) ? node.parentId : nodeId;
       const subtreeBounds = getSubtreeYBounds(branchRootId, positions);
@@ -2286,13 +2383,13 @@ function doRenderGraph(subject) {
       }
 
       const leftPadding = 40;
-      const currentLeft = x + (pos.x - pos.width / 2) * targetScale;
+      const currentLeft = x + (horizontalPosition.x - horizontalPosition.width / 2) * targetScale;
       if (currentLeft < leftPadding) {
-        x = Math.round(leftPadding - (pos.x - pos.width / 2) * targetScale);
+        x = Math.round(leftPadding - (horizontalPosition.x - horizontalPosition.width / 2) * targetScale);
       }
 
       state.mapTransform = { x, y, scale: targetScale };
-      applyMapTransform();
+      applyMapTransform({ snap: shouldSnapCenter });
     }
   }
   const previousVisible = state.previousGraphVisibleIds;
@@ -2325,6 +2422,14 @@ function doRenderGraph(subject) {
     const hasChildren = node.childrenIds.length > 0;
     const isActiveNode = activePath.has(node.id);
     const isEntering = !previousVisible.has(node.id);
+    const previousPosition = previousPositions.get(nodeId);
+    const moveDeltaX = previousPosition && !isEntering && !shouldSnapCenterBeforeLayout
+      ? Math.round(previousPosition.x - position.x)
+      : 0;
+    const moveDeltaY = previousPosition && !isEntering && !shouldSnapCenterBeforeLayout
+      ? Math.round(previousPosition.y - position.y)
+      : 0;
+    const isMoving = Boolean(moveDeltaX || moveDeltaY);
     const meta = getNodeMeta(node);
     const nodeDelay = 0;
     const isArticle = node.type === "article";
@@ -2350,13 +2455,13 @@ function doRenderGraph(subject) {
 
     nodes.push(`
       <${tagName}
-        class="mind-node node-${node.type} ${hasChildren ? "has-children" : ""} ${isActiveNode ? "active" : ""} ${isEntering ? "entering" : ""} ${isDisabled ? "disabled" : ""}"
+        class="mind-node node-${node.type} ${hasChildren ? "has-children" : ""} ${isActiveNode ? "active" : ""} ${isEntering ? "entering" : ""} ${isMoving ? "moving" : ""} ${isDisabled ? "disabled" : ""}"
         ${actionAttributes}
         data-node="${escapeHtml(node.id)}"
         data-depth="${node.depth || 0}"
         title="${escapeHtml(cleanDisplayText(node.title))}"
         aria-label="${escapeHtml(`${cleanDisplayText(node.title)}, ${meta}`)}"
-        style="left:${position.x - box.width / 2}px; top:${position.y - box.height / 2}px; width:${box.width}px; height:${box.height}px; --node-color:${color}; --node-delay:${nodeDelay}s;"
+        style="left:${position.x - box.width / 2}px; top:${position.y - box.height / 2}px; width:${box.width}px; height:${box.height}px; --node-color:${color}; --node-delay:${nodeDelay}s; --from-x:${moveDeltaX}px; --from-y:${moveDeltaY}px;"
       >
         ${dot}
         <span class="mind-label">
@@ -2377,6 +2482,15 @@ function doRenderGraph(subject) {
   const nodeElements = new Map(
     [...nodeLayer.querySelectorAll(".mind-node")].map((element) => [element.getAttribute("data-node"), element]),
   );
+  nodeLayer.querySelectorAll(".mind-node.moving").forEach((element) => {
+    const clearMovingState = () => {
+      element.classList.remove("moving");
+      element.style.removeProperty("--from-x");
+      element.style.removeProperty("--from-y");
+    };
+    element.addEventListener("animationend", clearMovingState, { once: true });
+    window.setTimeout(clearMovingState, 650);
+  });
 
   const getEdgeAnchor = (nodeId, side) => {
     const position = positions.get(nodeId);
@@ -2619,10 +2733,20 @@ function makeNodeTextLines(text, maxChars, maxLines = 2) {
   return lines;
 }
 
-function applyMapTransform() {
+function applyMapTransform(options = {}) {
   const canvas = app.querySelector("[data-map-canvas]");
   if (!canvas) return;
   const { x, y, scale } = state.mapTransform;
+  if (options.snap) {
+    const previousTransition = canvas.style.transition;
+    canvas.style.transition = "none";
+    canvas.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    canvas.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      canvas.style.transition = previousTransition;
+    });
+    return;
+  }
   canvas.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 }
 
@@ -2755,10 +2879,8 @@ function bindGraphEvents(svg, subject) {
     const isLevel1 = (node.parentId === subject.rootNodeId);
     const isLevel2 = (parentNode && parentNode.parentId === subject.rootNodeId);
 
-    // 如果是点击一级或二级节点，触发聚焦与纯粹的淡入淡出交互
-    if (isLevel1 || isLevel2) {
-      const mapArea = app.querySelector(".map-area");
-
+    // 如果是点击可展开节点，触发聚焦与纯粹的淡入淡出交互
+    if (node.type !== "subject") {
       let willExpand = false;
       if (state.expanded.has(nodeId) && node.type !== "subject") {
         state.expanded.delete(nodeId);
@@ -2786,50 +2908,15 @@ function bindGraphEvents(svg, subject) {
         }
       }
 
-      // 1. 先行计算并刷新节点布局坐标系
-      layoutGraph(subject);
-
-      // 2. 计算精准的平移分量与聚焦目标
       if (willExpand) {
-        const pos = state.positions.get(nodeId);
-        if (mapArea && pos) {
-          const areaWidth = mapArea.clientWidth;
-          const areaHeight = mapArea.clientHeight;
-          const focusX = isLevel2 ? areaWidth / 3.0 : areaWidth / 2.7;
-          const focusY = areaHeight / 2;
-
-          const currentScale = state.mapTransform.scale;
-          const targetScale = clampNumber(currentScale, 0.85, 1.0);
-
-          let x = Math.round(focusX - pos.x * targetScale);
-          let y = Math.round(focusY - pos.y * targetScale);
-
-          const branchRootId = isLevel2 ? node.parentId : nodeId;
-          const subtreeBounds = getSubtreeYBounds(branchRootId, state.positions);
-          if (subtreeBounds) {
-            const topPadding = 90;
-            const currentTop = y + subtreeBounds.minY * targetScale;
-            if (currentTop < topPadding) {
-              y = Math.round(topPadding - subtreeBounds.minY * targetScale);
-            }
-          }
-
-          const leftPadding = 40;
-          const currentLeft = x + (pos.x - pos.width / 2) * targetScale;
-          if (currentLeft < leftPadding) {
-            x = Math.round(leftPadding - (pos.x - pos.width / 2) * targetScale);
-          }
-
-          state.mapTransform = { x, y, scale: targetScale };
-        }
-      } else {
+        state.shouldCenterActiveNode = true;
+      } else if (isLevel1 || isLevel2) {
         state.mapTransform = { x: 0, y: 0, scale: getDefaultMapScale() };
       }
 
       state.mapFitActive = false;
       state.mapFitResetTransform = null;
 
-      // 3. 同步重排并应用过渡。画布无闪烁，仅新展开的节点自身通过 CSS opacity 优雅渐现
       renderGraph(subject);
       updateFitScreenButton();
     } else {

@@ -2197,15 +2197,17 @@ mark {
   position: absolute;
   top: 0;
   left: 0;
+  contain: layout paint style;
   transform-origin: 0 0;
   will-change: transform, opacity;
-  transition: transform 0.75s cubic-bezier(0.25, 1, 0.25, 1), opacity 0.65s cubic-bezier(0.25, 1, 0.25, 1);
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.25, 1), opacity 0.5s cubic-bezier(0.25, 1, 0.25, 1);
 }
 
 .graph-svg {
   position: relative;
   z-index: 1;
   display: block;
+  contain: layout paint style;
   width: auto;
   height: auto;
   min-width: 0;
@@ -2222,6 +2224,7 @@ mark {
   top: 0;
   left: 0;
   z-index: 2;
+  contain: layout paint style;
   transform-origin: 0 0;
   pointer-events: none;
   will-change: transform;
@@ -2399,8 +2402,9 @@ mark {
 }
 
 .mind-edge.entering {
-  animation: edgeIn 0.3s ease-out backwards;
+  animation: edgeFadeIn 0.5s ease-out backwards;
   animation-delay: var(--edge-delay);
+  filter: none;
 }
 
 .mind-edge.active {
@@ -2467,8 +2471,27 @@ mark {
 }
 
 .mind-node.entering {
-  animation: nodeFadeIn 0.3s ease-out backwards;
+  animation: nodeFadeIn 0.5s ease-out backwards;
   animation-delay: var(--node-delay);
+}
+
+.mind-node.moving {
+  animation: nodeMoveIn 0.5s cubic-bezier(0.25, 1, 0.25, 1) both;
+  contain: layout paint style;
+}
+
+.mind-node.moving .mind-label {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: none;
+}
+
+.mind-node.moving .mind-dot {
+  box-shadow:
+    0 0 0 3px rgba(8, 8, 12, 0.96),
+    0 0 5px color-mix(in srgb, var(--node-color) 32%, transparent);
+  transition: none;
 }
 
 .mind-dot {
@@ -2689,6 +2712,16 @@ mark {
   }
 }
 
+@keyframes edgeFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 0.5;
+  }
+}
+
 @keyframes nodeEnterFromLeft {
   from {
     opacity: 0;
@@ -2722,6 +2755,16 @@ mark {
   to {
     opacity: 1;
     transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes nodeMoveIn {
+  from {
+    transform: translate3d(var(--from-x), var(--from-y), 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
   }
 }
 
