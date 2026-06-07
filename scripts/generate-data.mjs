@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findMarkdownWriteIssues, shouldIgnoreMarkdownFile } from "./lib/markdown-write-guard.mjs";
 import { loadNotionArticles } from "./sources/notion.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -99,7 +100,10 @@ function isContentDirectory(entry) {
 async function collectMarkdownFiles(dir) {
   const entries = (await safeReadDir(dir)).sort(compareOrdinal);
   const folders = entries.filter(isContentDirectory);
-  const files = entries.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md"));
+  const files = entries.filter((entry) => {
+    const childPath = path.join(dir, entry.name);
+    return entry.isFile() && entry.name.toLowerCase().endsWith(".md") && !shouldIgnoreMarkdownFile(childPath);
+  });
   const nested = [];
 
   for (const folder of folders) {
@@ -147,7 +151,10 @@ async function addDirectoryNode(context, absoluteDir, parentId, subjectId, depth
 
   const entries = (await safeReadDir(absoluteDir)).sort(compareOrdinal);
   const folders = entries.filter(isContentDirectory);
-  const files = entries.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md"));
+  const files = entries.filter((entry) => {
+    const childPath = path.join(absoluteDir, entry.name);
+    return entry.isFile() && entry.name.toLowerCase().endsWith(".md") && !shouldIgnoreMarkdownFile(childPath);
+  });
 
   for (const folder of folders) {
     await addDirectoryNode(context, path.join(absoluteDir, folder.name), nodeId, subjectId, depth + 1);
@@ -162,6 +169,15 @@ async function addArticleNode(context, absoluteFile, parentId, subjectId, depth)
   const relativePath = path.relative(sourceRoot, absoluteFile);
   const nodeId = pathId("article", relativePath);
   const content = await fs.readFile(absoluteFile, "utf8");
+  const writeIssues = findMarkdownWriteIssues(content, { targetPath: absoluteFile });
+  if (writeIssues.length) {
+    context.skippedInvalidArticles.push({
+      path: toPosixPath(relativePath),
+      issues: writeIssues,
+      sourceType: "github",
+    });
+    return;
+  }
   const rawName = path.basename(absoluteFile);
   const fileTitle = cleanName(rawName) || rawName.replace(/\.md$/i, "");
   const heading = getFirstHeading(content);
@@ -317,6 +333,16 @@ function getOrCreateDirectoryNode(result, parentId, subjectId, title, relativePa
 }
 
 function addExternalArticle(result, article) {
+  const writeIssues = findMarkdownWriteIssues(article.content, { targetPath: article.rawName || `${article.title}.md` });
+  if (writeIssues.length) {
+    result.skippedInvalidArticles.push({
+      path: article.relativePath || article.rawName || article.title,
+      issues: writeIssues,
+      sourceType: article.sourceType || "external",
+    });
+    return;
+  }
+
   const sourceType = article.sourceType || "external";
   const subjectTitle = cleanName(article.subjectTitle || sourceType);
   let subject = findSubjectByTitle(result, subjectTitle);
@@ -634,6 +660,7 @@ async function build() {
     articlesById: {},
     searchEntries: [],
     articlePayloads: [],
+    skippedInvalidArticles: [],
   };
 
   for (const subjectCandidate of subjectCandidates) {
@@ -658,12 +685,16 @@ async function build() {
       articlesById: result.articlesById,
       searchEntries: result.searchEntries,
       articlePayloads: result.articlePayloads,
+      skippedInvalidArticles: result.skippedInvalidArticles,
       makePathText: (nodeId) => makePathText(result.nodesById, nodeId),
     };
 
     const entries = (await safeReadDir(absoluteSubject)).sort(compareOrdinal);
     const folders = entries.filter(isContentDirectory);
-    const files = entries.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md"));
+    const files = entries.filter((entry) => {
+      const childPath = path.join(absoluteSubject, entry.name);
+      return entry.isFile() && entry.name.toLowerCase().endsWith(".md") && !shouldIgnoreMarkdownFile(childPath);
+    });
 
     for (const folder of folders) {
       await addDirectoryNode(context, path.join(absoluteSubject, folder.name), subjectId, subjectId, 1);
@@ -704,6 +735,9 @@ async function build() {
   console.log(`Generated ${outputPath}`);
   console.log(`Subjects: ${result.subjects.length}`);
   console.log(`Articles: ${Object.keys(result.articlesById).length}`);
+  if (result.skippedInvalidArticles.length) {
+    console.log(`Skipped invalid articles: ${result.skippedInvalidArticles.length}`);
+  }
 }
 
 build().catch((error) => {

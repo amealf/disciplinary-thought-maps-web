@@ -6,12 +6,161 @@ const MOBILE_MAP_SCALE = 0.66;
 const HOME_RANDOM_TITLE_COUNT = 24;
 const MIND_PRIMARY_MAX_CHARS = 30;
 const THEME_STORAGE_KEY = "discipline-map-theme";
+const LANGUAGE_STORAGE_KEY = "discipline-map-language";
 const DEFAULT_THEME = { palette: "color", tone: "dark" };
+const DEFAULT_LANGUAGE = "cn";
 const ENTRY_SORTER = new Intl.Collator("zh-CN-u-co-pinyin", {
   ignorePunctuation: true,
   numeric: true,
   sensitivity: "base",
 });
+
+const UI_TEXT = {
+  cn: {
+    article: "文章",
+    articles: "篇文章",
+    articleNotExist: "请求的文章不存在。",
+    articleNotFound: "文章不存在",
+    availableGroups: "可用分组",
+    availableSubjects: "可用科目",
+    backTo: "返回",
+    backToAllSubjects: "返回全部科目",
+    branches: "个分支",
+    close: "关闭",
+    collapseBranches: "折叠分支",
+    contentRepository: "内容仓库",
+    darkTheme: "深色主题",
+    directoryMap: "目录地图",
+    directoryMapAria: "目录地图",
+    directoryTopic: "目录主题",
+    documentHomeTitle: "深入研究一切 - Seeking",
+    entriesIntro: "Markdown 目录主题与学科地图。",
+    existingSubjects: "现存科目",
+    randomSubject: "随机学科",
+    expandable: "可展开",
+    expanded: "已展开",
+    expandAll: "展开所有分支",
+    fitScreen: "适应屏幕",
+    folders: "个文件夹",
+    fullIndex: "完整索引",
+    headingLevel: "标题级别",
+    home: "首页",
+    homeHeroTitle: "深入研究一切",
+    inspiration: "灵感",
+    languageAria: "语言",
+    lightTheme: "浅色主题",
+    mapControls: "地图控制",
+    mapPerspective: "地图视角",
+    markdownIntro: "Markdown 目录主题与学科地图。",
+    noMatchesInSubject: "当前科目中没有匹配结果",
+    noMatchingResults: "没有匹配结果",
+    notFound: "未找到",
+    openSearch: "打开搜索",
+    overview: "概览",
+    paletteColorLabel: "彩色风格，点击切换为单色风格",
+    palettePlainLabel: "单色风格，点击切换为彩色风格",
+    read: "阅读",
+    refreshInspiration: "刷新灵感",
+    reset: "恢复",
+    resetMapSize: "恢复地图大小",
+    results: "个结果",
+    revealNode: "定位节点",
+    search: "探索",
+    searchHeading: "探索",
+    searchPlaceholder: "探索学科、概念、人物...",
+    searchSubjects: "探索科目",
+    searchThisSubject: "探索当前科目...",
+    selectArticle: "选择一个文章节点后在这里阅读",
+    switchTone: "切换深浅主题",
+    themeAria: "主题",
+    thisGroup: "这个分组",
+    thisSubject: "这个科目",
+    topicCount: "个主题",
+    topics: "个主题",
+    typeArticle: "文章",
+    typeGroup: "分组",
+    typeLevel1: "一级",
+    typeLevel2: "二级",
+    typeResult: "结果",
+    typeSubject: "科目",
+    unavailable: "不可用",
+    websiteRepository: "网站仓库",
+    zoomIn: "放大",
+    zoomOut: "缩小",
+  },
+  en: {
+    article: "Article",
+    articles: "articles",
+    articleNotExist: "The requested article does not exist.",
+    articleNotFound: "Article not found",
+    availableGroups: "Available groups",
+    availableSubjects: "Available subjects",
+    backTo: "Back to",
+    backToAllSubjects: "Back to All Subjects",
+    branches: "branches",
+    close: "Close",
+    collapseBranches: "Collapse branches",
+    contentRepository: "Content Repository",
+    darkTheme: "Dark theme",
+    directoryMap: "Directory Map",
+    directoryMapAria: "Directory map",
+    directoryTopic: "Directory topic",
+    documentHomeTitle: "Deep Research Everything - Seeking",
+    entriesIntro: "Markdown directory topics and subject maps.",
+    existingSubjects: "Existing Subjects",
+    randomSubject: "Random Subject",
+    expandable: "Expandable",
+    expanded: "Expanded",
+    expandAll: "Expand all branches",
+    fitScreen: "FixScreen",
+    folders: "folders",
+    fullIndex: "Full Index",
+    headingLevel: "Heading level",
+    home: "Home",
+    homeHeroTitle: "Deep research everything",
+    inspiration: "Inspiration",
+    languageAria: "Language",
+    lightTheme: "Light theme",
+    mapControls: "Map controls",
+    mapPerspective: "Map perspective",
+    markdownIntro: "Markdown directory topics and subject maps.",
+    noMatchesInSubject: "No matches in this subject",
+    noMatchingResults: "No matching results",
+    notFound: "Not found",
+    openSearch: "Open search",
+    overview: "Overview",
+    paletteColorLabel: "Colorful style; click to use plain color style",
+    palettePlainLabel: "Plain color style; click to use colorful style",
+    read: "Read",
+    refreshInspiration: "Refresh Inspiration",
+    reset: "Reset",
+    resetMapSize: "Reset map size",
+    results: "results",
+    revealNode: "Reveal Node",
+    search: "Explore",
+    searchHeading: "Explore",
+    searchPlaceholder: "Explore subjects, concepts, people...",
+    searchSubjects: "Explore subjects",
+    searchThisSubject: "Explore this subject...",
+    selectArticle: "Select an article node to read it here",
+    switchTone: "Switch light or dark",
+    themeAria: "Theme",
+    thisGroup: "This group",
+    thisSubject: "This subject",
+    topicCount: "topics",
+    topics: "topics",
+    typeArticle: "Article",
+    typeGroup: "Group",
+    typeLevel1: "Level 1",
+    typeLevel2: "Level 2",
+    typeResult: "Result",
+    typeSubject: "Subject",
+    unavailable: "Unavailable",
+    websiteRepository: "Website Repository",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+  },
+};
 
 const state = {
   data: null,
@@ -41,6 +190,7 @@ const state = {
   homeSearchIndex: -1,
   homeAnimation: null,
   theme: loadThemePreference(),
+  language: loadLanguagePreference(),
 };
 
 applyTheme();
@@ -157,9 +307,35 @@ function saveThemePreference() {
   }
 }
 
+function loadLanguagePreference() {
+  try {
+    return localStorage.getItem(LANGUAGE_STORAGE_KEY) === "en" ? "en" : DEFAULT_LANGUAGE;
+  } catch {
+    return DEFAULT_LANGUAGE;
+  }
+}
+
+function saveLanguagePreference() {
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, state.language);
+  } catch {
+    // Local storage may be unavailable in restricted browser modes.
+  }
+}
+
+function t(key) {
+  return UI_TEXT[state.language]?.[key] ?? UI_TEXT.cn[key] ?? key;
+}
+
+function formatCount(count, nounKey) {
+  return state.language === "cn" ? `${count}${t(nounKey)}` : `${count} ${t(nounKey)}`;
+}
+
 function applyTheme() {
   document.body.dataset.palette = state.theme.palette;
   document.body.dataset.tone = state.theme.tone;
+  document.body.dataset.language = state.language;
+  document.documentElement.lang = state.language === "en" ? "en" : "zh-CN";
 }
 
 function renderToneThemeIcon(isLight) {
@@ -188,13 +364,17 @@ function renderToneThemeIcon(isLight) {
 function renderThemeControls() {
   const isPlain = state.theme.palette === "plain";
   const isLight = state.theme.tone === "light";
-  const paletteLabel = isPlain ? "Plain color style; click to use colorful style" : "Colorful style; click to use plain color style";
+  const paletteLabel = isPlain ? t("palettePlainLabel") : t("paletteColorLabel");
   return `
-    <div class="theme-actions" aria-label="Theme">
+    <div class="theme-actions" aria-label="${escapeHtml(t("themeAria"))}">
+      <div class="language-toggle" role="group" aria-label="${escapeHtml(t("languageAria"))}">
+        <button class="language-option ${state.language === "cn" ? "active" : ""}" type="button" data-action="set-language" data-language="cn" aria-pressed="${state.language === "cn"}">CN</button>
+        <button class="language-option ${state.language === "en" ? "active" : ""}" type="button" data-action="set-language" data-language="en" aria-pressed="${state.language === "en"}">EN</button>
+      </div>
       <button class="theme-toggle theme-toggle-icon" type="button" data-action="toggle-palette" aria-pressed="${isPlain}" title="${paletteLabel}" aria-label="${paletteLabel}">
         <span class="theme-swatch theme-swatch-palette" aria-hidden="true"></span>
       </button>
-      <button class="theme-toggle theme-toggle-icon" type="button" data-action="toggle-tone" aria-pressed="${isLight}" title="Switch light or dark" aria-label="${isLight ? "Light theme" : "Dark theme"}">
+      <button class="theme-toggle theme-toggle-icon" type="button" data-action="toggle-tone" aria-pressed="${isLight}" title="${escapeHtml(t("switchTone"))}" aria-label="${escapeHtml(isLight ? t("lightTheme") : t("darkTheme"))}">
         <span class="theme-tone-icon" data-theme-tone-icon aria-hidden="true">${renderToneThemeIcon(isLight)}</span>
       </button>
     </div>
@@ -206,14 +386,15 @@ function updateThemeControls() {
   const isPlain = state.theme.palette === "plain";
   const isLight = state.theme.tone === "light";
   app.querySelectorAll("[data-action='toggle-palette']").forEach((button) => {
-    const paletteLabel = isPlain ? "Plain color style; click to use colorful style" : "Colorful style; click to use plain color style";
+    const paletteLabel = isPlain ? t("palettePlainLabel") : t("paletteColorLabel");
     button.setAttribute("aria-pressed", String(isPlain));
     button.setAttribute("aria-label", paletteLabel);
     button.setAttribute("title", paletteLabel);
   });
   app.querySelectorAll("[data-action='toggle-tone']").forEach((button) => {
     button.setAttribute("aria-pressed", String(isLight));
-    button.setAttribute("aria-label", isLight ? "Light theme" : "Dark theme");
+    button.setAttribute("aria-label", isLight ? t("lightTheme") : t("darkTheme"));
+    button.setAttribute("title", t("switchTone"));
   });
   app.querySelectorAll("[data-theme-tone-icon]").forEach((icon) => {
     icon.innerHTML = renderToneThemeIcon(isLight);
@@ -233,6 +414,23 @@ function bindThemeControls() {
       state.theme.tone = state.theme.tone === "dark" ? "light" : "dark";
       saveThemePreference();
       updateThemeControls();
+    });
+  });
+  app.querySelectorAll("[data-action='set-language']").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextLanguage = button.getAttribute("data-language") === "en" ? "en" : "cn";
+      if (state.language === nextLanguage) return;
+      state.language = nextLanguage;
+      saveLanguagePreference();
+      state.subjectQuery = "";
+      state.subjectSearchOpen = false;
+      state.homeSearchIndex = -1;
+      state.selectedArticleId = null;
+      state.mindNodeBoxCache.clear();
+      state.graphSubjectId = null;
+      state.graphAssignedColors = null;
+      state.previousGraphVisibleIds = new Set();
+      render();
     });
   });
 }
@@ -258,12 +456,92 @@ function cleanDisplayText(value) {
     .trim();
 }
 
+function hasChineseText(value) {
+  return /[\u3400-\u9fff\uf900-\ufaff]/.test(cleanDisplayText(value));
+}
+
+function hasLatinText(value) {
+  return /[A-Za-z]/.test(cleanDisplayText(value));
+}
+
+function isEnglishOnlyText(value) {
+  const text = cleanDisplayText(value);
+  return Boolean(text) && hasLatinText(text) && !hasChineseText(text);
+}
+
+function getEnglishDisplayText(value) {
+  const text = cleanDisplayText(value);
+  return isEnglishOnlyText(text) ? text : "";
+}
+
+function getLocalizedTitleText(value) {
+  if (state.language === "en") return getEnglishDisplayText(value);
+  return cleanDisplayText(value);
+}
+
+function getLocalizedPathText(value) {
+  const text = cleanDisplayText(value);
+  if (!text) return "";
+  if (state.language === "en" && !isEnglishOnlyText(text)) return "";
+  return text.split(/\s*\/\s*/).map((part) => part.trim()).filter(Boolean).join(" —— ");
+}
+
+function getTitleLanguage(value) {
+  const text = cleanDisplayText(value);
+  if (hasChineseText(text)) return "cn";
+  if (hasLatinText(text)) return "en";
+  return null;
+}
+
+function matchesCurrentLanguageTitle(value) {
+  return matchesCurrentLanguageItem(value);
+}
+
+function matchesCurrentLanguageItem(title, pathText = "") {
+  const combined = cleanDisplayText([title, pathText].filter(Boolean).join(" "));
+  if (!combined) return false;
+  if (state.language === "en") return isEnglishOnlyText(combined);
+  return hasChineseText(combined);
+}
+
+function matchesCurrentLanguageTopic(topic) {
+  if (!topic) return false;
+  const pathText = getHomeTopicPath(topic.id).map((item) => item.title).join(" / ");
+  return matchesCurrentLanguageItem(topic.title, pathText);
+}
+
+function getMindNodeDisplayTitle(node) {
+  if (!node) return "";
+  const rawTitle = node.type === "article" ? node.shortTitle || node.title : node.title;
+  return getLocalizedTitleText(rawTitle);
+}
+
+function getVisibleChildIds(node) {
+  if (!node?.childrenIds) return [];
+  return node.childrenIds.filter((childId) => {
+    const child = getNode(childId);
+    if (!child) return false;
+    return matchesCurrentLanguageItem(child.title || child.shortTitle, child.path);
+  });
+}
+
+function getTypeLabel(type) {
+  const keyByType = {
+    subject: "typeSubject",
+    group: "typeGroup",
+    level1: "typeLevel1",
+    level2: "typeLevel2",
+    article: "typeArticle",
+  };
+  return t(keyByType[type] || "typeResult");
+}
+
 function getArticlePageContent(article) {
   const rawMarkdown = String(article?.content ?? "")
     .replace(/^\uFEFF/, "")
     .replace(/\r\n/g, "\n")
     .trimStart();
-  const title = cleanDisplayText(article?.title ?? "Article not found");
+  const title = cleanDisplayText(article?.title ?? t("articleNotFound"));
   const firstContentLine = rawMarkdown.split("\n").find((line) => line.trim());
   const markdown = firstContentLine && !/^#\s+.+$/.test(firstContentLine.trim())
     ? `# ${title}\n\n${rawMarkdown}`
@@ -302,18 +580,19 @@ function getArticleTopbarNodeHref(node) {
 
 function getArticleTopbarTitle(nodes, article) {
   const title = nodes
-    .map((node) => cleanDisplayText(node.title))
+    .map((node) => getLocalizedTitleText(node.title))
     .filter(Boolean)
     .join(" - ");
-  return title || cleanDisplayText(article?.title ?? "Article not found");
+  return title || getLocalizedTitleText(article?.title) || t("articleNotFound");
 }
 
 function renderArticleTopbarPath(nodes) {
-  if (!nodes.length) return `<span class="obsidian-topbar-title">Article not found</span>`;
+  if (!nodes.length) return `<span class="obsidian-topbar-title">${escapeHtml(t("articleNotFound"))}</span>`;
   return `
-    <nav class="obsidian-topbar-path" aria-label="Article location">
+    <nav class="obsidian-topbar-path" aria-label="${escapeHtml(t("article"))}">
       ${nodes.map((node, index) => {
-    const label = cleanDisplayText(node.title);
+    const label = getLocalizedTitleText(node.title);
+    if (!label) return "";
     const href = node.href ?? getArticleTopbarNodeHref(node);
     const content = `<span>${escapeHtml(label)}</span>`;
     const item = href
@@ -520,6 +799,21 @@ function getHomeTopicHref(topic) {
   return `#/missing?q=${encodeURIComponent(topic.title)}`;
 }
 
+function getRandomSubjectHref() {
+  const topics = getHomeTopics()
+    .filter((topic) => matchesCurrentLanguageTopic(topic))
+    .map((topic) => getHomeTopicTargetHref(topic))
+    .filter(Boolean);
+  if (topics.length) return topics[Math.floor(Math.random() * topics.length)];
+
+  const subjects = (state.data?.subjects ?? [])
+    .filter((subject) => matchesCurrentLanguageItem(subject.title, subject.path))
+    .map((subject) => `#/subject/${subject.id}`);
+  if (subjects.length) return subjects[Math.floor(Math.random() * subjects.length)];
+
+  return "#/disciplines";
+}
+
 function getSubjectParentHomeTopic(subjectId) {
   const topic = getHomeTopicBySubjectId(subjectId);
   return topic?.parentId ? getHomeTopic(topic.parentId) : null;
@@ -527,7 +821,7 @@ function getSubjectParentHomeTopic(subjectId) {
 
 function renderToolbarBackLink(topic) {
   if (!topic) return "";
-  const label = `Back to ${cleanDisplayText(topic.title)}`;
+  const label = `${t("backTo")} ${getLocalizedTitleText(topic.title) || t("thisGroup")}`;
   return `
     <a class="back-link icon-only" href="${escapeHtml(getHomeTopicHref(topic))}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
       <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -539,7 +833,7 @@ function renderToolbarBackLink(topic) {
 
 function renderToolbarBackToSubjectsLink() {
   return `
-    <a class="back-link icon-only" href="#/disciplines" title="Back to All Subjects" aria-label="Back to All Subjects">
+    <a class="back-link icon-only" href="#/disciplines" title="${escapeHtml(t("backToAllSubjects"))}" aria-label="${escapeHtml(t("backToAllSubjects"))}">
       <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M15 18l-6-6 6-6" />
       </svg>
@@ -549,7 +843,7 @@ function renderToolbarBackToSubjectsLink() {
 
 function renderToolbarHomeLink(href = "#/") {
   return `
-    <a class="back-link icon-only" href="${escapeHtml(href)}" title="Home" aria-label="Home">
+    <a class="back-link icon-only" href="${escapeHtml(href)}" title="${escapeHtml(t("home"))}" aria-label="${escapeHtml(t("home"))}">
       <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 10.8 12 3l9 7.8" />
         <path d="M5.5 10.5V21h13V10.5" />
@@ -645,7 +939,7 @@ function getRandomHomeTitleTopics(count = HOME_RANDOM_TITLE_COUNT) {
     if (entry.type !== "article") continue; // 只随机所有文档 (articles)
     const title = cleanDisplayText(entry.title);
     const key = normalizeText(title);
-    if (!title || !key || unique.has(key)) continue;
+    if (!title || !key || unique.has(key) || !matchesCurrentLanguageItem(title, entry.pathText)) continue;
 
     const subject = getSubject(entry.subjectId);
     const subjectText = normalizeText(`${subject?.title ?? ""} ${subject?.path ?? ""} ${subject?.homeKey ?? ""}`);
@@ -710,6 +1004,7 @@ function findHomeTopicByQuery(query) {
   const term = normalizeText(query);
   if (!term) return null;
   return getHomeTopics().find((topic) => {
+    if (!matchesCurrentLanguageTopic(topic)) return false;
     const title = normalizeText(topic.title);
     return title === term || title.includes(term) || term.includes(title);
   }) ?? null;
@@ -757,6 +1052,7 @@ function searchData(query, options = {}) {
   const results = [];
   for (const entry of state.data.searchEntries) {
     if (options.subjectId && entry.subjectId !== options.subjectId) continue;
+    if (!matchesCurrentLanguageItem(entry.title, entry.pathText)) continue;
     const article = entry.articleId ? getArticle(entry.articleId) : null;
     const searchable = normalizeText([
       entry.title,
@@ -791,6 +1087,7 @@ function searchData(query, options = {}) {
 
 function render() {
   if (!state.data) return;
+  applyTheme();
   if (state.route.name !== "home") stopHomeAnimation();
   if (state.route.name === "subject") {
     renderSubjectPage(state.route.subjectId);
@@ -824,13 +1121,18 @@ function renderShell(content, headerSearchValue = "") {
     <div class="app-shell">
       <header class="top-strip">
         <a class="brand" href="#/">
-          <span class="brand-symbol">✦</span>
-          <span>Disciplinary Thought Maps</span>
+          <span class="brand-symbol" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; display: block;">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <span>Seeking</span>
         </a>
         <form class="header-search" data-action="global-search">
           <div class="search-box">
-            <input name="q" value="${escapeHtml(headerSearchValue)}" placeholder="Subjects, concepts, people..." autocomplete="off" />
-            <button class="search-submit" title="Search" aria-label="Search">⌕</button>
+            <input name="q" value="${escapeHtml(headerSearchValue)}" placeholder="${escapeHtml(t("searchPlaceholder"))}" autocomplete="off" />
+            <button class="search-submit" title="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}">⌕</button>
           </div>
         </form>
         <div class="top-strip-actions">
@@ -841,9 +1143,14 @@ function renderShell(content, headerSearchValue = "") {
     </div>
   `;
 
+  bindGlobalHeader(headerSearchValue);
+}
+
+function bindGlobalHeader() {
   const form = app.querySelector('[data-action="global-search"]');
   const headerInput = form?.querySelector("input");
   const submitGlobalSearch = () => {
+    if (!form) return;
     const formData = new FormData(form);
     const query = String(formData.get("q") ?? "").trim();
     if (query) window.location.hash = `#/search?q=${encodeURIComponent(query)}`;
@@ -860,19 +1167,32 @@ function renderShell(content, headerSearchValue = "") {
   bindThemeControls();
 }
 
-function renderHomeThemeBar() {
+function bindHomeActions() {
+  const randomSubjectLink = app.querySelector('[data-action="random-subject"]');
+  randomSubjectLink?.addEventListener("click", (event) => {
+    event.preventDefault();
+    window.location.hash = getRandomSubjectHref();
+  });
+}
+
+function renderHomeThemeBar(searchValue = "") {
   return `
     <header class="home-theme-bar">
-      <a class="home-theme-brand" href="#/" aria-label="Home">
+      <a class="home-theme-brand" href="#/" aria-label="${escapeHtml(t("home"))}">
         <span class="home-theme-brand-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M4 5.5 10 3l4 2 6-2.5v16l-6 2.5-4-2-6 2.5v-16Z" />
-            <path d="M10 3v16" />
-            <path d="M14 5v16" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
         </span>
-        <span>Disciplinary Thought Maps</span>
+        <span>Seeking</span>
       </a>
+      <form class="header-search home-bar-search" data-action="global-search" role="search">
+        <div class="search-box">
+          <input name="q" value="${escapeHtml(searchValue)}" placeholder="${escapeHtml(t("searchPlaceholder"))}" autocomplete="off" aria-label="${escapeHtml(t("search"))}" />
+          <button class="search-submit" title="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}">⌕</button>
+        </div>
+      </form>
       ${renderThemeControls()}
     </header>
   `;
@@ -881,6 +1201,7 @@ function renderHomeThemeBar() {
 function renderHomePage() {
   const query = state.route.params.get("q") ?? "";
   stopHomeAnimation();
+  document.title = "Seeking. Everything.";
 
   app.innerHTML = `
     <main class="learn-home">
@@ -890,37 +1211,28 @@ function renderHomePage() {
         <div class="glow-blob blob-2"></div>
         <div class="glow-blob blob-3"></div>
       </div>
-      ${renderHomeThemeBar()}
+      ${renderHomeThemeBar(query)}
       
       <!-- 主体限宽居中容器，对齐 demo_redesign.html -->
       <div class="container">
         <section class="home-hero-section">
           <div class="home-hero-inner">
-            <h1 class="home-hero-title">I want to learn</h1>
-            <form class="learn-search" data-action="home-search" role="search">
-              <div class="learn-search-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-              </div>
-              <input
-                name="q"
-                value="${escapeHtml(query)}"
-                placeholder="Subjects, concepts, people..."
-                autocomplete="off"
-                autofocus
-                role="combobox"
-                aria-expanded="false"
-                aria-controls="home-suggestions"
-              />
-              <div class="home-suggestions" id="home-suggestions" role="listbox"></div>
-            </form>
-            <a class="home-all-entries-link" href="#/disciplines">All Subjects</a>
+            <h1 class="home-hero-title">
+              <span class="hero-title-main">Seeking.</span>
+              <span class="hero-title-sub">Everything.</span>
+            </h1>
+            <p class="home-hero-subtitle">${state.language === "cn" ? "任何主题的" : "Gain "}<span class="subtitle-highlight">${state.language === "cn" ? "结构化知识" : "structured knowledge"}</span>${state.language === "cn" ? "" : " on any topic."}</p>
+            <div class="home-hero-actions">
+              <a class="home-random-subject-link" href="#/disciplines" data-action="random-subject">${escapeHtml(t("randomSubject"))}</a>
+              <a class="home-all-entries-link" href="#/disciplines">${escapeHtml(t("existingSubjects"))}</a>
+            </div>
           </div>
         </section>
 
         <section class="explore-panel">
           <div class="explore-header">
             <div class="explore-title-card">
-              <h2 class="explore-title">Inspiration</h2>
+              <h2 class="explore-title">${escapeHtml(t("inspiration"))}</h2>
             </div>
           </div>
           <div class="explore-tag-cloud-container">
@@ -930,7 +1242,7 @@ function renderHomePage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
                 </svg>
-                <span>Refresh Inspiration</span>
+                <span>${escapeHtml(t("refreshInspiration"))}</span>
               </button>
             </div>
           </div>
@@ -938,23 +1250,23 @@ function renderHomePage() {
       </div>
       <footer class="home-footer" aria-label="Project links">
         <div class="home-footer-links">
-          <a href="https://github.com/amealf/disciplinary-thought-maps-web" target="_blank" rel="noopener noreferrer">Website Repository</a>
-          <a href="https://github.com/amealf/disciplinary-thought-maps-content" target="_blank" rel="noopener noreferrer">Content Repository</a>
+          <a href="https://github.com/amealf/disciplinary-thought-maps-web" target="_blank" rel="noopener noreferrer">${escapeHtml(t("websiteRepository"))}</a>
+          <a href="https://github.com/amealf/disciplinary-thought-maps-content" target="_blank" rel="noopener noreferrer">${escapeHtml(t("contentRepository"))}</a>
         </div>
         <div class="home-footer-credit">Designed by Yilimi</div>
       </footer>
     </main>
   `;
 
-  bindHomeSearch();
-  bindThemeControls();
+  bindGlobalHeader(query);
+  bindHomeActions();
   state.homeAnimation = startHomeExplore();
-  if (query) updateHomeSuggestions(query);
 }
 
 function getTopicLocationText(topic, label) {
   const rawPath = cleanDisplayText(topic.pathText || "");
   if (!rawPath) return "";
+  if (state.language === "en" && !matchesCurrentLanguageItem(label, rawPath)) return "";
   const parts = rawPath.split(/\s*\/\s*/).map((part) => part.trim()).filter(Boolean);
   if (parts.length <= 1) {
     const norm = normalizeText(rawPath) === normalizeText(label) ? "" : rawPath;
@@ -974,6 +1286,11 @@ function startHomeExplore() {
   function renderTags() {
     if (stopped) return;
     const topics = getRandomHomeTitleTopics(10);
+    if (!topics.length) {
+      tagContainer.innerHTML = `<div class="empty-state">${escapeHtml(t("noMatchingResults"))}</div>`;
+      tagContainer.classList.remove("refreshing");
+      return;
+    }
 
     const totalColors = 12;
     const steps = [5, 7];
@@ -990,7 +1307,7 @@ function startHomeExplore() {
 
       colorIndex = (colorIndex + step) % totalColors;
 
-      const label = cleanDisplayText(topic.title);
+      const label = getLocalizedTitleText(topic.title);
       const locationText = getTopicLocationText(topic, label);
       const delay = i * 45;
 
@@ -1035,16 +1352,39 @@ function renderHomeGroupPage(groupId) {
   stopHomeAnimation();
 
   if (!group) {
+    const availableGroups = getHomeTopics()
+      .filter((topic) => getHomeChildren(topic.id).length)
+      .filter((topic) => matchesCurrentLanguageTopic(topic))
+      .map((topic) => escapeHtml(getLocalizedTitleText(topic.title)))
+      .join(", ");
     app.innerHTML = `
       <main class="missing-page">
-        <a class="missing-back" href="#/">← Home</a>
+        <a class="missing-back" href="#/">← ${escapeHtml(t("home"))}</a>
         <section class="missing-card">
-          <p>Not found</p>
-          <h1>${escapeHtml(groupId || "This group")}</h1>
-          <div>Available groups: ${getHomeTopics().filter((topic) => getHomeChildren(topic.id).length).map((topic) => escapeHtml(topic.title)).join(", ")}.</div>
+          <p>${escapeHtml(t("notFound"))}</p>
+          <h1>${escapeHtml(groupId || t("thisGroup"))}</h1>
+          <div>${escapeHtml(t("availableGroups"))}: ${availableGroups}</div>
         </section>
       </main>
     `;
+    return;
+  }
+
+  if (!matchesCurrentLanguageTopic(group)) {
+    app.innerHTML = `
+      <div class="app-shell">
+      ${renderHomeThemeBar()}
+      <main class="missing-page">
+        <a class="missing-back" href="#/disciplines">← ${escapeHtml(t("backToAllSubjects"))}</a>
+        <section class="missing-card">
+          <p>${escapeHtml(t("notFound"))}</p>
+          <h1>${escapeHtml(t("thisGroup"))}</h1>
+          <div>${escapeHtml(t("noMatchingResults"))}</div>
+        </section>
+      </main>
+      </div>
+    `;
+    bindGlobalHeader();
     return;
   }
 
@@ -1070,10 +1410,10 @@ function renderHomeGroupPage(groupId) {
           ${parentTopic ? renderToolbarBackLink(parentTopic) : renderToolbarBackToSubjectsLink()}
           ${renderToolbarHomeLink("#/disciplines")}
         </div>
-        <div class="subject-map-title">${escapeHtml(cleanDisplayText(group.title))}</div>
+        <div class="subject-map-title">${escapeHtml(getLocalizedTitleText(group.title))}</div>
         <div class="toolbar-actions">
-          <div class="segmented" aria-label="Map perspective">
-            <button class="active" type="button">Directory Map</button>
+          <div class="segmented" aria-label="${escapeHtml(t("mapPerspective"))}">
+            <button class="active" type="button">${escapeHtml(t("directoryMap"))}</button>
           </div>
           ${renderThemeControls()}
         </div>
@@ -1081,13 +1421,13 @@ function renderHomeGroupPage(groupId) {
       <section class="map-layout reader-hidden">
         <div class="map-area">
           <div class="map-canvas" data-map-canvas>
-            <svg class="graph-svg" data-graph role="img" aria-label="${escapeHtml(group.title)} directory map"></svg>
+            <svg class="graph-svg" data-graph role="img" aria-label="${escapeHtml(`${getLocalizedTitleText(group.title)} ${t("directoryMapAria")}`)}"></svg>
             <div class="node-layer" data-node-layer></div>
           </div>
-          <div class="floating-map-controls" aria-label="Map controls">
-            <button class="map-icon-button" type="button" data-action="zoom-in" title="Zoom in" aria-label="Zoom in">＋</button>
-            <button class="map-icon-button" type="button" data-action="zoom-out" title="Zoom out" aria-label="Zoom out">－</button>
-            <button class="map-icon-button fit-screen-button" type="button" data-action="fit-screen" title="${state.mapFitActive ? "Reset map size" : "FixScreen"}" aria-label="${state.mapFitActive ? "Reset map size" : "FixScreen"}">${state.mapFitActive ? "Reset" : "FixScreen"}</button>
+          <div class="floating-map-controls" aria-label="${escapeHtml(t("mapControls"))}">
+            <button class="map-icon-button" type="button" data-action="zoom-in" title="${escapeHtml(t("zoomIn"))}" aria-label="${escapeHtml(t("zoomIn"))}">＋</button>
+            <button class="map-icon-button" type="button" data-action="zoom-out" title="${escapeHtml(t("zoomOut"))}" aria-label="${escapeHtml(t("zoomOut"))}">－</button>
+            <button class="map-icon-button fit-screen-button" type="button" data-action="fit-screen" title="${escapeHtml(state.mapFitActive ? t("resetMapSize") : t("fitScreen"))}" aria-label="${escapeHtml(state.mapFitActive ? t("resetMapSize") : t("fitScreen"))}">${escapeHtml(state.mapFitActive ? t("reset") : t("fitScreen"))}</button>
           </div>
         </div>
       </section>
@@ -1202,8 +1542,8 @@ function updateHomeSuggestions(query) {
       data-home-result
       data-href="${escapeHtml(pathForResult(result))}"
     >
-      <span>${makeMarkedText(result.title, trimmed)}</span>
-      <small>${makeMarkedText(result.pathText, trimmed)}</small>
+      <span>${makeMarkedText(getLocalizedTitleText(result.title), trimmed)}</span>
+      <small>${makeMarkedText(getLocalizedPathText(result.pathText) || result.pathText, trimmed)}</small>
     </button>
   `).join("");
 }
@@ -1212,6 +1552,7 @@ function findSubjectByQuery(query) {
   const term = normalizeText(query);
   if (!term) return null;
   return state.data.subjects.find((subject) => {
+    if (!matchesCurrentLanguageItem(subject.title, subject.path)) return false;
     const title = normalizeText(subject.title);
     return title === term || title.includes(term) || term.includes(title);
   }) ?? null;
@@ -1221,6 +1562,7 @@ function searchSubjects(query) {
   const term = normalizeText(query);
   if (!term) return [];
   const subjectResults = state.data.subjects
+    .filter((subject) => matchesCurrentLanguageItem(subject.title, subject.path))
     .map((subject) => {
       const title = normalizeText(subject.title);
       const score = title === term ? 10 : title.includes(term) || term.includes(title) ? 5 : 0;
@@ -1228,8 +1570,8 @@ function searchSubjects(query) {
         id: subject.id,
         type: "subject",
         title: subject.title,
-        pathText: `${subject.articleCount} articles`,
-        excerpt: score ? "Open subject map" : "Not found",
+        pathText: formatCount(subject.articleCount, "articles"),
+        excerpt: score ? t("typeSubject") : t("notFound"),
         subjectId: subject.id,
         nodeId: subject.rootNodeId,
         score,
@@ -1238,6 +1580,7 @@ function searchSubjects(query) {
     .filter((item) => item.score > 0);
   const groupResults = getHomeTopics()
     .filter((topic) => getHomeChildren(topic.id).length)
+    .filter((topic) => matchesCurrentLanguageTopic(topic))
     .map((topic) => {
       const title = normalizeText(topic.title);
       const score = title === term ? 9 : title.includes(term) || term.includes(title) ? 4 : 0;
@@ -1246,8 +1589,8 @@ function searchSubjects(query) {
         type: "group",
         groupId: topic.id,
         title: topic.title,
-        pathText: `${getHomeChildren(topic.id).length} subject links`,
-        excerpt: score ? "Open group map" : "Not found",
+        pathText: formatCount(getHomeChildren(topic.id).length, "topics"),
+        excerpt: score ? t("typeGroup") : t("notFound"),
         score,
       };
     })
@@ -1258,13 +1601,17 @@ function searchSubjects(query) {
 
 function renderMissingPage() {
   const query = state.route.params.get("q") ?? "";
+  const availableSubjects = state.data.subjects
+    .filter((subject) => matchesCurrentLanguageItem(subject.title, subject.path))
+    .map((subject) => escapeHtml(getLocalizedTitleText(subject.title)))
+    .join(", ");
   app.innerHTML = `
     <main class="missing-page">
-      <a class="missing-back" href="#/">← Home</a>
+      <a class="missing-back" href="#/">← ${escapeHtml(t("home"))}</a>
       <section class="missing-card">
-        <p>Not found</p>
-        <h1>${escapeHtml(query || "This subject")}</h1>
-        <div>Available subjects: ${state.data.subjects.map((subject) => escapeHtml(subject.title)).join(", ")}.</div>
+        <p>${escapeHtml(t("notFound"))}</p>
+        <h1>${escapeHtml(query || t("thisSubject"))}</h1>
+        <div>${escapeHtml(t("availableSubjects"))}: ${availableSubjects}</div>
       </section>
     </main>
   `;
@@ -1314,7 +1661,7 @@ function startHomeCanvas(options = {}) {
     const link = document.createElement("a");
     const color = palette[index % palette.length];
     const slot = getSlot(index);
-    const label = cleanDisplayText(topic.title);
+    const label = getLocalizedTitleText(topic.title);
     link.href = href;
     link.className = `home-canvas-label level-${topic.level ?? 2} type-${topic.type ?? "topic"}`;
     link.textContent = label;
@@ -1361,7 +1708,7 @@ function renderSearchPage() {
   renderShell(`
     <main class="page">
       <section class="result-section">
-        ${renderResultSection(`Search "${query}"`, results, query)}
+        ${renderResultSection(`${t("searchHeading")} "${query}"`, results, query)}
       </section>
     </main>
   `, query);
@@ -1370,6 +1717,7 @@ function renderSearchPage() {
 function getSelectedDisciplineLevel() {
   const rawLevel = state.route.params.get("level");
   if (rawLevel === "all") return "all";
+  if (!rawLevel && state.language === "en") return "all";
   const level = Number(rawLevel ?? 1);
   return Number.isInteger(level) && level >= 1 && level <= 4 ? level : 1;
 }
@@ -1379,33 +1727,35 @@ function getAllExistingDisciplines(level = 1) {
   if (topics.length) {
     return topics
       .filter((topic) => level === "all" || (topic.level ?? 1) === level)
+      .filter((topic) => matchesCurrentLanguageTopic(topic))
       .map((topic) => {
         const subject = topic.subjectId ? getSubject(topic.subjectId) : null;
-        const children = getHomeChildren(topic.id);
+        const children = getHomeChildren(topic.id).filter((child) => matchesCurrentLanguageTopic(child));
         const pathText = getHomeTopicPath(topic.id).map((item) => item.title).join(" / ");
         return {
           id: topic.id,
-          displayTitle: cleanDisplayText(topic.title),
+          displayTitle: getLocalizedTitleText(topic.title),
           href: getHomeTopicHref(topic),
-          path: pathText,
+          path: getLocalizedPathText(pathText),
           articleCount: subject?.articleCount ?? 0,
           groupCount: subject?.groupCount ?? children.length,
           detailText: children.length
-            ? `${children.length} topics`
+            ? formatCount(children.length, "topics")
             : subject
-              ? `${subject.groupCount} folders · ${subject.articleCount} articles`
-              : "Directory topic",
+              ? `${formatCount(subject.groupCount, "folders")} · ${formatCount(subject.articleCount, "articles")}`
+              : t("directoryTopic"),
         };
       })
       .filter((topic) => topic.displayTitle);
   }
 
   return (state.data?.subjects ?? [])
+    .filter((subject) => matchesCurrentLanguageItem(subject.title, subject.path))
     .map((subject) => ({
       ...subject,
-      displayTitle: cleanDisplayText(subject.title),
+      displayTitle: getLocalizedTitleText(subject.title),
       href: `#/subject/${subject.id}`,
-      detailText: `${subject.groupCount} folders · ${subject.articleCount} articles`,
+      detailText: `${formatCount(subject.groupCount, "folders")} · ${formatCount(subject.articleCount, "articles")}`,
     }))
     .filter((subject) => subject.displayTitle)
     .sort((left, right) => (
@@ -1425,13 +1775,13 @@ function shuffleItems(items) {
 
 function renderHeadingLevelFilter(selectedLevel) {
   return `
-    <nav class="heading-level-filter" aria-label="Heading level">
+    <nav class="heading-level-filter" aria-label="${escapeHtml(t("headingLevel"))}">
       ${[1, 2, 3, 4].map((level) => `
         <a
           class="entry-stat heading-level-option ${level === selectedLevel ? "active" : ""}"
           href="#/disciplines?level=${level}"
           aria-current="${level === selectedLevel ? "true" : "false"}"
-        >Level ${level}</a>
+        >${state.language === "cn" ? `第 ${level} 级` : `Level ${level}`}</a>
       `).join("")}
     </nav>
   `;
@@ -1496,7 +1846,7 @@ function assignRandomDisciplineColors(items) {
 
 function renderAllDisciplinesPage() {
   const selectedLevel = getSelectedDisciplineLevel();
-  const allTopicCount = getHomeTopics().length || getAllExistingDisciplines().length;
+  const allTopicCount = getAllExistingDisciplines("all").length || getAllExistingDisciplines().length;
   const disciplineItems = getAllExistingDisciplines(selectedLevel);
   const displayedDisciplines = selectedLevel === "all" ? shuffleItems(disciplineItems) : disciplineItems;
   const disciplines = assignRandomDisciplineColors(displayedDisciplines);
@@ -1505,29 +1855,29 @@ function renderAllDisciplinesPage() {
       ${renderHomeThemeBar()}
       <main class="entries-page disciplines-page">
       <section class="entries-hero">
-        <p class="entries-kicker">Full Index</p>
-        <h1>All Existing Topics</h1>
-        <p class="entries-intro">Markdown directory topics and subject maps.</p>
+        <p class="entries-kicker">${escapeHtml(t("fullIndex"))}</p>
+        <h1>${state.language === "cn" ? "全部已有主题" : "All Existing Topics"}</h1>
+        <p class="entries-intro">${escapeHtml(t("entriesIntro"))}</p>
         <div class="discipline-hero-row">
           <div class="entries-stats">
             <a class="entry-stat entry-stat-total all-topics-option ${selectedLevel === "all" ? "active" : ""}" href="#/disciplines?level=all" aria-current="${selectedLevel === "all" ? "true" : "false"}">
-              <span>All Topics</span>
+              <span>${state.language === "cn" ? "全部主题" : "All Topics"}</span>
               <strong>${allTopicCount}</strong>
             </a>
             ${renderHeadingLevelFilter(selectedLevel)}
           </div>
           <div class="discipline-search" data-discipline-search>
-            <button class="discipline-search-toggle" type="button" data-action="discipline-search-toggle" aria-expanded="false" aria-label="Search subjects">
+            <button class="discipline-search-toggle" type="button" data-action="discipline-search-toggle" aria-expanded="false" aria-label="${escapeHtml(t("searchSubjects"))}">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7"></circle>
                 <path d="m20 20-4.2-4.2"></path>
               </svg>
             </button>
-            <input data-discipline-search-input type="search" placeholder="Search subjects..." autocomplete="off" />
+            <input data-discipline-search-input type="search" placeholder="${escapeHtml(t("searchSubjects"))}..." autocomplete="off" />
           </div>
         </div>
       </section>
-      <section class="discipline-board" aria-label="All existing topics">
+      <section class="discipline-board" aria-label="${state.language === "cn" ? "全部已有主题" : "All existing topics"}">
         <div class="discipline-grid">
           ${disciplines.map((discipline) => `
             <a class="discipline-card" href="${escapeHtml(discipline.href)}" data-discipline-card data-title="${escapeHtml(discipline.displayTitle)}" style="--discipline-accent: ${escapeHtml(discipline.accentColor)}">
@@ -1540,7 +1890,7 @@ function renderAllDisciplinesPage() {
     </main>
     </div>
   `;
-  bindThemeControls();
+  bindGlobalHeader();
   bindDisciplineSearch();
 }
 
@@ -1599,20 +1949,20 @@ function renderResultSection(title, results, query) {
     ? results.map((result) => `
       <a class="search-result" data-type="${escapeHtml(result.type)}" href="${pathForResult(result)}">
         <div class="result-title">
-          <span class="type-badge">${typeLabels[result.type] ?? "Result"}</span>
-          <span>${makeMarkedText(result.title, query)}</span>
+          <span class="type-badge">${escapeHtml(getTypeLabel(result.type))}</span>
+          <span>${makeMarkedText(getLocalizedTitleText(result.title), query)}</span>
         </div>
-        <div class="result-path">${makeMarkedText(result.pathText, query)}</div>
+        <div class="result-path">${makeMarkedText(getLocalizedPathText(result.pathText), query)}</div>
         <div class="result-excerpt">${makeMarkedText(truncateText(result.excerpt, 180), query)}</div>
       </a>
     `).join("")
-    : `<div class="empty-state">No matching results</div>`;
+    : `<div class="empty-state">${escapeHtml(t("noMatchingResults"))}</div>`;
 
   return `
     <section class="result-section">
       <div class="section-title">
         <h2>${escapeHtml(title)}</h2>
-        <span class="pill">${results.length} results</span>
+        <span class="pill">${formatCount(results.length, "results")}</span>
       </div>
       <div class="results-list">${content}</div>
     </section>
@@ -1624,14 +1974,32 @@ function renderSubjectPage(subjectId) {
   if (!subject) {
     app.innerHTML = `
       <main class="missing-page">
-        <a class="missing-back" href="#/">← Home</a>
+        <a class="missing-back" href="#/">← ${escapeHtml(t("home"))}</a>
         <section class="missing-card">
-          <p>Not found</p>
-          <h1>${escapeHtml(subjectId || "This subject")}</h1>
-          <div>This entry has no matching subject.</div>
+          <p>${escapeHtml(t("notFound"))}</p>
+          <h1>${escapeHtml(subjectId || t("thisSubject"))}</h1>
+          <div>${escapeHtml(t("noMatchingResults"))}</div>
         </section>
       </main>
     `;
+    return;
+  }
+
+  if (!matchesCurrentLanguageItem(subject.title, subject.path)) {
+    app.innerHTML = `
+      <div class="app-shell">
+      ${renderHomeThemeBar()}
+      <main class="missing-page">
+        <a class="missing-back" href="#/disciplines">← ${escapeHtml(t("backToAllSubjects"))}</a>
+        <section class="missing-card">
+          <p>${escapeHtml(t("notFound"))}</p>
+          <h1>${escapeHtml(t("thisSubject"))}</h1>
+          <div>${escapeHtml(t("noMatchingResults"))}</div>
+        </section>
+      </main>
+      </div>
+    `;
+    bindGlobalHeader();
     return;
   }
 
@@ -1650,8 +2018,8 @@ function renderSubjectPage(subjectId) {
           ${renderToolbarHomeLink()}
         </div>
         <form class="subject-search ${searchOpen ? "open" : ""}" data-action="subject-search">
-          <input name="q" value="${escapeHtml(state.subjectQuery)}" placeholder="Search this subject..." autocomplete="off" aria-label="Search this subject" />
-          <button class="search-submit" type="button" data-action="subject-search-toggle" title="Search" aria-label="${searchOpen ? "Search" : "Open search"}">⌕</button>
+          <input name="q" value="${escapeHtml(state.subjectQuery)}" placeholder="${escapeHtml(t("searchThisSubject"))}" autocomplete="off" aria-label="${escapeHtml(t("searchThisSubject"))}" />
+          <button class="search-submit" type="button" data-action="subject-search-toggle" title="${escapeHtml(t("search"))}" aria-label="${escapeHtml(searchOpen ? t("search") : t("openSearch"))}">⌕</button>
         </form>
         <div class="toolbar-actions">
           ${renderThemeControls()}
@@ -1661,11 +2029,11 @@ function renderSubjectPage(subjectId) {
         <div class="map-area">
           ${renderSubjectSearchResults(subject.id)}
           <div class="map-canvas" data-map-canvas>
-            <svg class="graph-svg" data-graph role="img" aria-label="${escapeHtml(subject.title)} interactive map"></svg>
+            <svg class="graph-svg" data-graph role="img" aria-label="${escapeHtml(getLocalizedTitleText(subject.title) || t("thisSubject"))} interactive map"></svg>
             <div class="node-layer" data-node-layer></div>
           </div>
-          <div class="floating-map-controls" aria-label="Map controls">
-            <button class="map-icon-button" type="button" data-action="expand-all" title="Expand all branches" aria-label="Expand all branches">
+          <div class="floating-map-controls" aria-label="${escapeHtml(t("mapControls"))}">
+            <button class="map-icon-button" type="button" data-action="expand-all" title="${escapeHtml(t("expandAll"))}" aria-label="${escapeHtml(t("expandAll"))}">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M9 3H3v6" />
                 <path d="M15 3h6v6" />
@@ -1677,7 +2045,7 @@ function renderSubjectPage(subjectId) {
                 <path d="M21 21l-7-7" />
               </svg>
             </button>
-            <button class="map-icon-button" type="button" data-action="collapse" title="Collapse branches" aria-label="Collapse branches">
+            <button class="map-icon-button" type="button" data-action="collapse" title="${escapeHtml(t("collapseBranches"))}" aria-label="${escapeHtml(t("collapseBranches"))}">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 4H4v4" />
                 <path d="M16 4h4v4" />
@@ -1689,11 +2057,11 @@ function renderSubjectPage(subjectId) {
                 <path d="M20 20l-6-6" />
               </svg>
             </button>
-            <button class="map-icon-button fit-screen-button" type="button" data-action="fit-screen" title="${state.mapFitActive ? "Reset map size" : "FixScreen"}" aria-label="${state.mapFitActive ? "Reset map size" : "FixScreen"}">${state.mapFitActive ? "Reset" : "FixScreen"}</button>
-            <button class="map-icon-button" type="button" data-action="zoom-in" title="Zoom in" aria-label="Zoom in">＋</button>
-            <button class="map-icon-button" type="button" data-action="zoom-out" title="Zoom out" aria-label="Zoom out">－</button>
+            <button class="map-icon-button fit-screen-button" type="button" data-action="fit-screen" title="${escapeHtml(state.mapFitActive ? t("resetMapSize") : t("fitScreen"))}" aria-label="${escapeHtml(state.mapFitActive ? t("resetMapSize") : t("fitScreen"))}">${escapeHtml(state.mapFitActive ? t("reset") : t("fitScreen"))}</button>
+            <button class="map-icon-button" type="button" data-action="zoom-in" title="${escapeHtml(t("zoomIn"))}" aria-label="${escapeHtml(t("zoomIn"))}">＋</button>
+            <button class="map-icon-button" type="button" data-action="zoom-out" title="${escapeHtml(t("zoomOut"))}" aria-label="${escapeHtml(t("zoomOut"))}">－</button>
           </div>
-          ${selectedArticle ? `<button class="mobile-reader-toggle" type="button" data-action="mobile-reader">Read</button>` : ""}
+          ${selectedArticle ? `<button class="mobile-reader-toggle" type="button" data-action="mobile-reader">${escapeHtml(t("read"))}</button>` : ""}
         </div>
         <aside class="reader-panel ${state.mobileReaderOpen ? "" : "mobile-hidden"}">
           ${renderReader(selectedArticle)}
@@ -1720,7 +2088,12 @@ function renderBreadcrumb() {
   const nodes = target ? getNodePath(target) : [];
   if (!nodes.length) return "";
   return nodes
-    .map((node) => `<span class="crumb" title="${escapeHtml(cleanDisplayText(node.title))}">${escapeHtml(truncateText(cleanDisplayText(node.title), 42))}</span>`)
+    .map((node) => {
+      const label = getLocalizedTitleText(node.title);
+      if (!label) return "";
+      return `<span class="crumb" title="${escapeHtml(label)}">${escapeHtml(truncateText(label, 42))}</span>`;
+    })
+    .filter(Boolean)
     .join("");
 }
 
@@ -1729,14 +2102,14 @@ function renderSubjectSearchResults(subjectId) {
   if (!query) return "";
   const results = searchData(query, { subjectId, limit: 18 });
   if (!results.length) {
-    return `<div class="floating-results"><div class="empty-state">No matches in this subject</div></div>`;
+    return `<div class="floating-results"><div class="empty-state">${escapeHtml(t("noMatchesInSubject"))}</div></div>`;
   }
   return `
     <div class="floating-results">
       ${results.map((result) => `
         <button class="floating-result" type="button" data-node="${escapeHtml(result.nodeId)}">
-          <strong>${makeMarkedText(result.title, query)}</strong>
-          <span>${makeMarkedText(result.pathText, query)}</span>
+          <strong>${makeMarkedText(getLocalizedTitleText(result.title), query)}</strong>
+          <span>${makeMarkedText(getLocalizedPathText(result.pathText), query)}</span>
         </button>
       `).join("")}
     </div>
@@ -1745,7 +2118,7 @@ function renderSubjectSearchResults(subjectId) {
 
 function renderReader(article) {
   if (!article) {
-    return `<div class="reader-empty">Select an article node to read it here</div>`;
+    return `<div class="reader-empty">${escapeHtml(t("selectArticle"))}</div>`;
   }
   loadArticleContent(article);
   const articleWithContent = getArticleWithContent(article);
@@ -1754,11 +2127,11 @@ function renderReader(article) {
     <div class="reader-content">
       <header class="reader-head">
         <div class="reader-actions">
-          <button class="tool-button" type="button" data-action="reveal">Reveal Node</button>
-          <button class="tool-button" type="button" data-action="close-reader">Close</button>
+          <button class="tool-button" type="button" data-action="reveal">${escapeHtml(t("revealNode"))}</button>
+          <button class="tool-button" type="button" data-action="close-reader">${escapeHtml(t("close"))}</button>
         </div>
-        <h2 class="reader-title">${escapeHtml(cleanDisplayText(article.title))}</h2>
-        <div class="reader-path">${escapeHtml(cleanDisplayText(article.pathText))}</div>
+        <h2 class="reader-title">${escapeHtml(getLocalizedTitleText(article.title))}</h2>
+        <div class="reader-path">${escapeHtml(getLocalizedPathText(article.pathText))}</div>
       </header>
       <article class="markdown-body">${renderMarkdown(articleWithContent?.content ?? "")}</article>
     </div>
@@ -1767,22 +2140,38 @@ function renderReader(article) {
 
 function renderArticlePage(articleId) {
   const articleMeta = getArticle(articleId);
+  if (articleMeta && !matchesCurrentLanguageItem(articleMeta.title, articleMeta.pathText || articleMeta.path)) {
+    app.innerHTML = `
+      <div class="app-shell">
+      ${renderHomeThemeBar()}
+      <main class="missing-page">
+        <a class="missing-back" href="#/disciplines">← ${escapeHtml(t("backToAllSubjects"))}</a>
+        <section class="missing-card">
+          <p>${escapeHtml(t("notFound"))}</p>
+          <h1>${escapeHtml(t("articleNotFound"))}</h1>
+          <div>${escapeHtml(t("noMatchingResults"))}</div>
+        </section>
+      </main>
+      </div>
+    `;
+    bindGlobalHeader();
+    return;
+  }
   loadArticleContent(articleMeta);
   const article = getArticleWithContent(articleMeta);
   const pageContent = getArticlePageContent(article);
   const topbarNodes = getArticleTopbarNodes(articleMeta);
   const topbarTitle = getArticleTopbarTitle(topbarNodes, articleMeta);
-  document.title = `${topbarTitle} - Disciplinary Thought Maps`;
+  document.title = `${topbarTitle} - Seeking`;
 
   app.innerHTML = `
     <main class="obsidian-page">
       <header class="obsidian-topbar">
-        <a class="home-theme-brand" href="#/" aria-label="Home">
+        <a class="home-theme-brand" href="#/" aria-label="${escapeHtml(t("home"))}">
           <span class="home-theme-brand-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 5.5 10 3l4 2 6-2.5v16l-6 2.5-4-2-6 2.5v-16Z" />
-              <path d="M10 3v16" />
-              <path d="M14 5v16" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </span>
         </a>
@@ -1794,7 +2183,7 @@ function renderArticlePage(articleId) {
         ${renderArticleTopbarPath(topbarNodes)}
       </div>
       <article class="obsidian-document obsidian-markdown">
-        ${articleMeta ? renderArticleMarkdown(pageContent.markdown) : `<h1>Article not found</h1><p>The requested article does not exist.</p>`}
+        ${articleMeta ? renderArticleMarkdown(pageContent.markdown) : `<h1>${escapeHtml(t("articleNotFound"))}</h1><p>${escapeHtml(t("articleNotExist"))}</p>`}
       </article>
     </main>
   `;
@@ -1918,7 +2307,7 @@ function getVisibleNodeIds(rootId) {
     if (!node) return;
     visible.push(nodeId);
     if (!state.expanded.has(nodeId)) return;
-    for (const childId of node.childrenIds) visit(childId);
+    for (const childId of getVisibleChildIds(node)) visit(childId);
   }
   visit(rootId);
   return visible;
@@ -2047,7 +2436,7 @@ function getArticleMindTitle(value) {
 
 function calculateMindNodeBox(node) {
   if (node.type === "subject") {
-    const titleText = cleanDisplayText(node.title);
+    const titleText = getMindNodeDisplayTitle(node);
     const textWidth = estimateTextWidth([titleText], 36, 56);
     return {
       width: clampNumber(textWidth + 44, 250, 600),
@@ -2055,7 +2444,7 @@ function calculateMindNodeBox(node) {
     };
   }
   if (node.type === "level1" || node.type === "level2") {
-    const title = splitMapTitle(node.title);
+    const title = splitMapTitle(getMindNodeDisplayTitle(node));
     const maxLength = getMindPrimaryMaxLength(node);
     const primaryLines = getMindTextLines(title.primary, maxLength);
     const secondaryLines = title.secondary ? getMindTextLines(title.secondary, node.type === "level1" ? 52 : 38) : [];
@@ -2071,7 +2460,7 @@ function calculateMindNodeBox(node) {
       height: Math.max(node.type === "level1" ? 72 : 56, baseHeight),
     };
   }
-  const title = getArticleMindTitle(node.title || node.shortTitle);
+  const title = getArticleMindTitle(getMindNodeDisplayTitle(node));
   const primaryLines = getMindTextLines(title.primary, MIND_PRIMARY_MAX_CHARS);
   const englishLines = title.english ? getMindTextLines(title.english, 44) : [];
   const noteLines = title.note ? getMindTextLines(title.note, MIND_PRIMARY_MAX_CHARS) : [];
@@ -2089,7 +2478,7 @@ function calculateMindNodeBox(node) {
 
 function getMindNodeBox(node) {
   if (!node) return { width: 0, height: 0 };
-  const cacheKey = node.id || `${node.type}:${node.title}:${node.shortTitle}`;
+  const cacheKey = `${state.language}:${node.id || `${node.type}:${node.title}:${node.shortTitle}`}`;
   const cached = state.mindNodeBoxCache.get(cacheKey);
   if (cached) return cached;
   const box = calculateMindNodeBox(node);
@@ -2419,7 +2808,7 @@ function doRenderGraph(subject) {
     }
 
     const box = getMindNodeBox(node);
-    const hasChildren = node.childrenIds.length > 0;
+    const hasChildren = getVisibleChildIds(node).length > 0;
     const isActiveNode = activePath.has(node.id);
     const isEntering = !previousVisible.has(node.id);
     const previousPosition = previousPositions.get(nodeId);
@@ -2436,7 +2825,8 @@ function doRenderGraph(subject) {
     const isDisabled = Boolean(node.disabled);
     const isLink = Boolean(node.href) && !isDisabled;
     const tagName = isArticle || isLink ? "a" : "button";
-    const title = isArticle ? getArticleMindTitle(node.title || node.shortTitle) : splitMapTitle(node.title);
+    const displayTitle = getMindNodeDisplayTitle(node);
+    const title = isArticle ? getArticleMindTitle(displayTitle) : splitMapTitle(displayTitle);
     const primaryMaxLength = getMindPrimaryMaxLength(node);
     const labelContent = isArticle
       ? `<span class="mind-article-title">
@@ -2459,8 +2849,8 @@ function doRenderGraph(subject) {
         ${actionAttributes}
         data-node="${escapeHtml(node.id)}"
         data-depth="${node.depth || 0}"
-        title="${escapeHtml(cleanDisplayText(node.title))}"
-        aria-label="${escapeHtml(`${cleanDisplayText(node.title)}, ${meta}`)}"
+        title="${escapeHtml(displayTitle)}"
+        aria-label="${escapeHtml(`${displayTitle}, ${meta}`)}"
         style="left:${position.x - box.width / 2}px; top:${position.y - box.height / 2}px; width:${box.width}px; height:${box.height}px; --node-color:${color}; --node-delay:${nodeDelay}s; --from-x:${moveDeltaX}px; --from-y:${moveDeltaY}px;"
       >
         ${dot}
@@ -2584,10 +2974,10 @@ function getNodeTone(node) {
 }
 
 function getNodeMeta(node) {
-  if (node.disabled) return "Unavailable";
-  if (node.type === "subject") return `Overview · ${node.childrenIds.length} branches`;
-  if (node.type === "article") return "Article";
-  return state.expanded.has(node.id) ? "Expanded" : "Expandable";
+  if (node.disabled) return t("unavailable");
+  if (node.type === "subject") return `${t("overview")} · ${formatCount(getVisibleChildIds(node).length, "branches")}`;
+  if (node.type === "article") return t("article");
+  return state.expanded.has(node.id) ? t("expanded") : t("expandable");
 }
 
 function getNodeTextRules(node) {
@@ -2598,7 +2988,7 @@ function getNodeTextRules(node) {
 }
 
 function getNodeLabel(node) {
-  return cleanDisplayText(node?.type === "article" ? node.shortTitle || node.title : node?.title);
+  return getMindNodeDisplayTitle(node);
 }
 
 function getNodeTextLines(node) {
@@ -2798,9 +3188,9 @@ function getSubtreeYBounds(nodeId, positions) {
 function updateFitScreenButton() {
   const button = app.querySelector("[data-action='fit-screen']");
   if (!button) return;
-  button.textContent = state.mapFitActive ? "Reset" : "FixScreen";
-  button.setAttribute("title", state.mapFitActive ? "Reset map size" : "FixScreen");
-  button.setAttribute("aria-label", state.mapFitActive ? "Reset map size" : "FixScreen");
+  button.textContent = state.mapFitActive ? t("reset") : t("fitScreen");
+  button.setAttribute("title", state.mapFitActive ? t("resetMapSize") : t("fitScreen"));
+  button.setAttribute("aria-label", state.mapFitActive ? t("resetMapSize") : t("fitScreen"));
 }
 
 function fitMapToScreen(subject) {

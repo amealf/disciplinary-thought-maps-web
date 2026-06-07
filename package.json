@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node scripts/build-site.mjs",
     "generate": "node scripts/generate-data.mjs",
-    "serve": "node scripts/server.mjs"
+    "serve": "node scripts/server.mjs",
+    "write:markdown": "node scripts/guarded-write-markdown.mjs"
   },
   "engines": {
     "node": ">=20"
