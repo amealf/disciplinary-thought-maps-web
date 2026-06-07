@@ -1223,8 +1223,8 @@ function renderHomePage() {
             </h1>
             <p class="home-hero-subtitle">${state.language === "cn" ? "任何主题的" : "Gain "}<span class="subtitle-highlight">${state.language === "cn" ? "结构化知识" : "structured knowledge"}</span>${state.language === "cn" ? "" : " on any topic."}</p>
             <div class="home-hero-actions">
-              <a class="home-random-subject-link" href="#/disciplines" data-action="random-subject">${escapeHtml(t("randomSubject"))}</a>
-              <a class="home-all-entries-link" href="#/disciplines">${escapeHtml(t("existingSubjects"))}</a>
+              <a class="home-random-subject-link" href="#/disciplines" data-action="random-subject"><span class="home-cta-label">${escapeHtml(t("randomSubject"))}</span></a>
+              <a class="home-all-entries-link" href="#/disciplines"><span class="home-cta-label">${escapeHtml(t("existingSubjects"))}</span></a>
             </div>
           </div>
         </section>
