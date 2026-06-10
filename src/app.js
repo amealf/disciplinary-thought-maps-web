@@ -1116,7 +1116,7 @@ function render() {
   renderHomePage();
 }
 
-function renderShell(content, headerSearchValue = "") {
+function renderShell(content) {
   app.innerHTML = `
     <div class="app-shell">
       <header class="top-strip">
@@ -1129,12 +1129,6 @@ function renderShell(content, headerSearchValue = "") {
           </span>
           <span>Seeking</span>
         </a>
-        <form class="header-search" data-action="global-search">
-          <div class="search-box">
-            <input name="q" value="${escapeHtml(headerSearchValue)}" placeholder="${escapeHtml(t("searchPlaceholder"))}" autocomplete="off" />
-            <button class="search-submit" title="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}">⌕</button>
-          </div>
-        </form>
         <div class="top-strip-actions">
           ${renderThemeControls()}
         </div>
@@ -1143,27 +1137,10 @@ function renderShell(content, headerSearchValue = "") {
     </div>
   `;
 
-  bindGlobalHeader(headerSearchValue);
+  bindGlobalHeader();
 }
 
 function bindGlobalHeader() {
-  const form = app.querySelector('[data-action="global-search"]');
-  const headerInput = form?.querySelector("input");
-  const submitGlobalSearch = () => {
-    if (!form) return;
-    const formData = new FormData(form);
-    const query = String(formData.get("q") ?? "").trim();
-    if (query) window.location.hash = `#/search?q=${encodeURIComponent(query)}`;
-  };
-  form?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    submitGlobalSearch();
-  });
-  headerInput?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    submitGlobalSearch();
-  });
   bindThemeControls();
 }
 
@@ -1187,12 +1164,6 @@ function renderHomeThemeBar(searchValue = "") {
         </span>
         <span>Seeking</span>
       </a>
-      <form class="header-search home-bar-search" data-action="global-search" role="search">
-        <div class="search-box">
-          <input name="q" value="${escapeHtml(searchValue)}" placeholder="${escapeHtml(t("searchPlaceholder"))}" autocomplete="off" aria-label="${escapeHtml(t("search"))}" />
-          <button class="search-submit" title="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}">⌕</button>
-        </div>
-      </form>
       ${renderThemeControls()}
     </header>
   `;
