@@ -1933,6 +1933,17 @@ body[data-tone="dark"] .search-submit:hover {
 
 .disciplines-page {
   min-height: calc(100vh - 58px);
+  animation: disciplinesPageFadeIn 0.5s ease-out both;
+}
+
+@keyframes disciplinesPageFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .disciplines-page .entries-hero,
@@ -2536,7 +2547,7 @@ mark {
   fill: none;
   stroke-linecap: round;
   opacity: 0.5;
-  transition: stroke-width 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+  transition: stroke-width 0.18s ease, opacity 0.18s ease;
 }
 
 .mind-edge.entering {
@@ -2549,13 +2560,23 @@ mark {
   stroke: var(--edge-color) !important;
   stroke-width: 2.2 !important;
   opacity: 0.95 !important;
-  filter: drop-shadow(0 0 4px var(--edge-color)) !important;
+  filter: none !important;
 }
 
 .mind-edge.root-edge {
   stroke-width: 2.4;
   opacity: 0.86;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--edge-color) 52%, transparent));
+  filter: none;
+}
+
+.mind-edge.root-flow-overlay {
+  stroke: color-mix(in srgb, var(--edge-color) 46%, #ffffff) !important;
+  stroke-width: 6 !important;
+  opacity: 0;
+  stroke-dasharray: 0.28 0.72;
+  stroke-dashoffset: 1;
+  pointer-events: none;
+  animation: rootEdgeFlow 1.3s cubic-bezier(0.25, 1, 0.25, 1) forwards;
 }
 
 .mind-node {
@@ -2571,9 +2592,13 @@ mark {
   background: transparent;
   pointer-events: auto;
   user-select: none;
-  will-change: transform;
   backface-visibility: hidden;
   transform-style: preserve-3d;
+}
+
+.mind-node.node-article {
+  content-visibility: auto;
+  contain-intrinsic-size: 56px 320px;
 }
 
 .mind-node.node-subject {
@@ -2611,11 +2636,13 @@ mark {
 .mind-node.entering {
   animation: nodeFadeIn 0.5s ease-out backwards;
   animation-delay: var(--node-delay);
+  will-change: transform, opacity;
 }
 
 .mind-node.moving {
   animation: nodeMoveIn 0.5s cubic-bezier(0.25, 1, 0.25, 1) both;
   contain: layout paint style;
+  will-change: transform;
 }
 
 .mind-node.moving .mind-label {
@@ -2860,6 +2887,37 @@ mark {
 
   to {
     opacity: 0.5;
+  }
+}
+
+@keyframes rootEdgeFlow {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 1;
+  }
+
+  18% {
+    opacity: 0.95;
+  }
+
+  76% {
+    opacity: 0.95;
+  }
+
+  100% {
+    opacity: 0;
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disciplines-page {
+    animation: none;
+  }
+
+  .mind-edge.root-flow-overlay {
+    animation: none;
+    opacity: 0;
   }
 }
 

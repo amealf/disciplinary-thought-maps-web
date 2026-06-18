@@ -501,7 +501,22 @@ function matchesCurrentLanguageItem(title, pathText = "") {
   const combined = cleanDisplayText([title, pathText].filter(Boolean).join(" "));
   if (!combined) return false;
   if (state.language === "en") return isEnglishOnlyText(combined);
-  return hasChineseText(combined);
+  return hasChineseText(combined) || isEnglishOnlyText(combined);
+}
+
+function isConceptArticleNode(node) {
+  if (!node || node.type !== "article") return false;
+  const parent = node.parentId ? getNode(node.parentId) : null;
+  return /重要概念 Key Concepts/.test(parent?.title || "");
+}
+
+function getConceptEnglishTitle(node) {
+  const title = cleanDisplayText(node?.title || "");
+  const shortTitle = cleanDisplayText(node?.shortTitle || "");
+  if (!title || !shortTitle.startsWith(`${title} `)) return "";
+  const rest = shortTitle.slice(title.length).trim();
+  if (!rest || hasChineseText(rest) || !hasLatinText(rest)) return "";
+  return rest;
 }
 
 function matchesCurrentLanguageTopic(topic) {
@@ -512,7 +527,13 @@ function matchesCurrentLanguageTopic(topic) {
 
 function getMindNodeDisplayTitle(node) {
   if (!node) return "";
-  const rawTitle = node.type === "article" ? node.shortTitle || node.title : node.title;
+  if (isConceptArticleNode(node)) {
+    const primary = getLocalizedTitleText(node.title);
+    const secondary = getConceptEnglishTitle(node);
+    if (state.language === "en") return secondary || getEnglishDisplayText(node.shortTitle);
+    return [primary, secondary].filter(Boolean).join(" ");
+  }
+  const rawTitle = node.type === "article" ? node.title || node.shortTitle : node.title;
   return getLocalizedTitleText(rawTitle);
 }
 
@@ -2609,6 +2630,7 @@ function layoutGraph(subject) {
 let isRenderPending = false;
 let renderSubjectPending = null;
 let renderFrameId = null;
+let isGraphResizeListenerBound = false;
 
 function renderGraph(subject) {
   renderSubjectPending = subject;
@@ -2631,7 +2653,8 @@ function renderGraph(subject) {
 function doRenderGraph(subject) {
   const svg = app.querySelector("[data-graph]");
   const nodeLayer = app.querySelector("[data-node-layer]");
-  if (!svg || !nodeLayer) return;
+  const canvas = app.querySelector("[data-map-canvas]");
+  if (!svg || !nodeLayer || !canvas) return;
   const previousPositions = state.positions;
   if (state.graphSubjectId !== subject.id) {
     state.graphSubjectId = subject.id;
@@ -2706,6 +2729,7 @@ function doRenderGraph(subject) {
   }
   const shouldSnapCenterBeforeLayout = state.shouldSnapCenterActiveNode;
   const { visible, positions, graphSize } = layoutGraph(subject);
+  let nextMapScrollTop = null;
   if (state.shouldCenterActiveNode && state.activeNodeId) {
     const shouldSnapCenter = state.shouldSnapCenterActiveNode;
     state.shouldCenterActiveNode = false;
@@ -2736,8 +2760,9 @@ function doRenderGraph(subject) {
       const subtreeBounds = getSubtreeYBounds(branchRootId, positions);
       if (subtreeBounds) {
         const topPadding = 90;
+        const subtreeHeight = (subtreeBounds.maxY - subtreeBounds.minY) * targetScale;
         const currentTop = y + subtreeBounds.minY * targetScale;
-        if (currentTop < topPadding) {
+        if (subtreeHeight <= areaHeight - topPadding * 2 && currentTop < topPadding) {
           y = Math.round(topPadding - subtreeBounds.minY * targetScale);
         }
       }
@@ -2748,17 +2773,24 @@ function doRenderGraph(subject) {
         x = Math.round(leftPadding - (horizontalPosition.x - horizontalPosition.width / 2) * targetScale);
       }
 
+      if (y < 0) {
+        nextMapScrollTop = Math.round(-y);
+        y = 0;
+      }
+
       state.mapTransform = { x, y, scale: targetScale };
       applyMapTransform({ snap: shouldSnapCenter });
     }
   }
   const previousVisible = state.previousGraphVisibleIds;
   const activePath = new Set((state.activeNodeId ? getNodePath(state.activeNodeId) : []).map((node) => node.id));
+  const shouldAnimateMovingNodes = Math.abs(visible.size - previousVisible.size) <= 28 && !shouldSnapCenterBeforeLayout;
 
   const assignedColors = state.graphAssignedColors || new Map();
 
   const edgeModels = [];
   const nodes = [];
+  let hasMovingNodes = false;
   visible.forEach((nodeId, index) => {
     const node = getNode(nodeId);
     const position = positions.get(nodeId);
@@ -2783,13 +2815,14 @@ function doRenderGraph(subject) {
     const isActiveNode = activePath.has(node.id);
     const isEntering = !previousVisible.has(node.id);
     const previousPosition = previousPositions.get(nodeId);
-    const moveDeltaX = previousPosition && !isEntering && !shouldSnapCenterBeforeLayout
+    const moveDeltaX = previousPosition && !isEntering && shouldAnimateMovingNodes
       ? Math.round(previousPosition.x - position.x)
       : 0;
-    const moveDeltaY = previousPosition && !isEntering && !shouldSnapCenterBeforeLayout
+    const moveDeltaY = previousPosition && !isEntering && shouldAnimateMovingNodes
       ? Math.round(previousPosition.y - position.y)
       : 0;
     const isMoving = Boolean(moveDeltaX || moveDeltaY);
+    if (isMoving) hasMovingNodes = true;
     const meta = getNodeMeta(node);
     const nodeDelay = 0;
     const isArticle = node.type === "article";
@@ -2835,23 +2868,13 @@ function doRenderGraph(subject) {
   svg.setAttribute("width", String(graphSize.width));
   svg.setAttribute("height", String(graphSize.height));
   svg.setAttribute("viewBox", `0 0 ${graphSize.width} ${graphSize.height}`);
+  const scrollReserveY = nextMapScrollTop ? nextMapScrollTop / Math.max(state.mapTransform.scale, 0.1) : 0;
+  canvas.style.width = `${graphSize.width}px`;
+  canvas.style.height = `${graphSize.height + scrollReserveY}px`;
   nodeLayer.style.width = `${graphSize.width}px`;
   nodeLayer.style.height = `${graphSize.height}px`;
   nodeLayer.innerHTML = nodes.join("");
   // 在 DOM 重构与测量期间直接操作 DOM，无需冗余的 canvas 过渡重置
-
-  const nodeElements = new Map(
-    [...nodeLayer.querySelectorAll(".mind-node")].map((element) => [element.getAttribute("data-node"), element]),
-  );
-  nodeLayer.querySelectorAll(".mind-node.moving").forEach((element) => {
-    const clearMovingState = () => {
-      element.classList.remove("moving");
-      element.style.removeProperty("--from-x");
-      element.style.removeProperty("--from-y");
-    };
-    element.addEventListener("animationend", clearMovingState, { once: true });
-    window.setTimeout(clearMovingState, 650);
-  });
 
   const getEdgeAnchor = (nodeId, side) => {
     const position = positions.get(nodeId);
@@ -2864,9 +2887,26 @@ function doRenderGraph(subject) {
     return { x: position.x - position.width / 2 + dotCenterOffset, y: position.y };
   };
 
-  const renderEdgePath = (edge, path, color = edge.color) => `
-    <path class="mind-edge ${edge.isRootEdge ? "root-edge" : ""} ${edge.isActive ? "active" : ""} ${edge.isEntering ? "entering" : ""}" style="--edge-delay:0s; --edge-color:${color}" d="${path}" />
-  `;
+  const makeCurvedEdgePath = (start, end) => {
+    const distance = Math.abs(end.x - start.x);
+    const direction = end.x >= start.x ? 1 : -1;
+    const curve = Math.min(130, distance * 0.42);
+    return `M ${start.x} ${start.y} C ${start.x + direction * curve} ${start.y}, ${end.x - direction * curve} ${end.y}, ${end.x} ${end.y}`;
+  };
+
+  const renderEdgePath = (edge, path, color = edge.color, options = {}) => {
+    const classes = [
+      "mind-edge",
+      edge.isRootEdge ? "root-edge" : "",
+      edge.isActive ? "active" : "",
+      edge.isEntering ? "entering" : "",
+    ].filter(Boolean).join(" ");
+    const basePath = `<path class="${classes}" pathLength="1" style="--edge-delay:0s; --edge-color:${color}" d="${path}" />`;
+    const flowPath = options.rootFlow
+      ? `<path class="mind-edge root-edge root-flow-overlay" pathLength="1" style="--edge-color:${color}" d="${path}" />`
+      : "";
+    return `${basePath}${flowPath}`;
+  };
 
   const subjectEdges = [];
   const elbowGroups = new Map();
@@ -2883,11 +2923,10 @@ function doRenderGraph(subject) {
   const curvedEdges = subjectEdges.map((edge) => {
     const start = getEdgeAnchor(edge.parentId, "out");
     const end = getEdgeAnchor(edge.nodeId, "in");
-    const distance = Math.abs(end.x - start.x);
-    const direction = end.x >= start.x ? 1 : -1;
-    const curve = Math.min(130, distance * 0.42);
-    const edgePath = `M ${start.x} ${start.y} C ${start.x + direction * curve} ${start.y}, ${end.x - direction * curve} ${end.y}, ${end.x} ${end.y}`;
-    return renderEdgePath(edge, edgePath);
+    const edgePath = makeCurvedEdgePath(start, end);
+    return renderEdgePath(edge, edgePath, edge.color, {
+      rootFlow: edge.isActive && !edge.isEntering,
+    });
   });
 
   const elbowEdges = [];
@@ -2902,8 +2941,8 @@ function doRenderGraph(subject) {
     const trunkX = Math.max(start.x + 24, minEndX - 80);
     const minY = Math.min(start.y, ...childModels.map((item) => item.end.y));
     const maxY = Math.max(start.y, ...childModels.map((item) => item.end.y));
-    const parentElement = nodeElements.get(parentId);
-    const parentColor = parentElement?.style.getPropertyValue("--node-color") || childModels[0].edge.color;
+    const parentNode = getNode(parentId);
+    const parentColor = parentNode ? getMindNodeColor(parentNode, assignedColors) : childModels[0].edge.color;
     const trunkEdge = {
       ...childModels[0].edge,
       isActive: childModels.some((item) => item.edge.isActive),
@@ -2917,10 +2956,20 @@ function doRenderGraph(subject) {
   }
   svg.innerHTML = `<g data-viewport>${curvedEdges.join("")}${elbowEdges.join("")}</g>`;
 
+  if (hasMovingNodes) {
+    window.setTimeout(() => {
+      nodeLayer.querySelectorAll(".mind-node.moving").forEach(clearMovingMindNodeState);
+    }, 650);
+  }
+
   // 测量和连线计算完毕，接下来触发 map 变换与事件绑定
   state.previousGraphVisibleIds = new Set(visible);
   applyMapTransform();
-  bindGraphEvents(svg, subject);
+  if (nextMapScrollTop !== null) {
+    const mapArea = app.querySelector(".map-area");
+    mapArea?.scrollTo({ top: nextMapScrollTop, left: mapArea.scrollLeft, behavior: "auto" });
+  }
+  bindGraphEvents(subject);
 }
 
 function getNodeBox(node) {
@@ -3227,7 +3276,14 @@ function openArticleNodeInNewTab(node) {
   window.open(articleNodeHref(node), "_blank", "noopener,noreferrer");
 }
 
-function bindGraphEvents(svg, subject) {
+function clearMovingMindNodeState(element) {
+  element.classList.remove("moving");
+  element.style.removeProperty("--from-x");
+  element.style.removeProperty("--from-y");
+}
+
+function bindGraphEvents(subject) {
+  const nodeLayer = app.querySelector("[data-node-layer]");
   const activateNode = (nodeId) => {
     const node = getNode(nodeId);
     if (!node) return;
@@ -3272,7 +3328,7 @@ function bindGraphEvents(svg, subject) {
       if (willExpand) {
         state.shouldCenterActiveNode = true;
       } else if (isLevel1 || isLevel2) {
-        state.mapTransform = { x: 0, y: 0, scale: getDefaultMapScale() };
+        state.shouldCenterActiveNode = true;
       }
 
       state.mapFitActive = false;
@@ -3292,18 +3348,30 @@ function bindGraphEvents(svg, subject) {
     }
   };
 
-  app.querySelectorAll(".mind-node").forEach((element) => {
-    element.addEventListener("click", (event) => {
+  if (nodeLayer) {
+    nodeLayer.onclick = (event) => {
+      const element = event.target.closest(".mind-node");
+      if (!element || !nodeLayer.contains(element)) return;
       const nodeId = element.getAttribute("data-node");
       const node = getNode(nodeId);
       if (node?.type === "article" || node?.href || node?.disabled) return;
       event.stopPropagation();
       event.preventDefault();
       activateNode(nodeId);
-    });
-  });
+    };
 
-  window.addEventListener("resize", applyMapTransform, { once: true });
+    nodeLayer.onanimationend = (event) => {
+      const element = event.target.closest?.(".mind-node.moving");
+      if (element && nodeLayer.contains(element)) {
+        clearMovingMindNodeState(element);
+      }
+    };
+  }
+
+  if (!isGraphResizeListenerBound) {
+    window.addEventListener("resize", applyMapTransform);
+    isGraphResizeListenerBound = true;
+  }
 }
 
 function renderMarkdown(markdown) {
