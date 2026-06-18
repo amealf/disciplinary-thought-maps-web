@@ -501,7 +501,7 @@ function matchesCurrentLanguageItem(title, pathText = "") {
   const combined = cleanDisplayText([title, pathText].filter(Boolean).join(" "));
   if (!combined) return false;
   if (state.language === "en") return isEnglishOnlyText(combined);
-  return hasChineseText(combined) || isEnglishOnlyText(combined);
+  return hasChineseText(combined);
 }
 
 function isConceptArticleNode(node) {
