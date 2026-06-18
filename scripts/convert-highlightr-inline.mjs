@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(scriptDir, "..");
-const sourceRoot = path.resolve(process.env.CONTENT_ROOT || path.resolve(siteRoot, "..", "学科地图-content"));
+const sourceRoot = path.resolve(process.env.CONTENT_ROOT || path.resolve(siteRoot, "..", "content"));
 const defaultPluginConfigPath = path.join(
   sourceRoot,
   ".obsidian",

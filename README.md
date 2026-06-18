@@ -22,17 +22,17 @@ https://github.com/amealf/disciplinary-thought-maps-content
 本地构建：
 
 ```powershell
-cd D:\学科地图-web
-$env:CONTENT_ROOT='D:\学科地图-content'
-$env:SITE_OUTPUT_ROOT='D:\学科地图-web\dist'
+cd D:\学科地图项目\web
+$env:CONTENT_ROOT='D:\学科地图项目\content'
+$env:SITE_OUTPUT_ROOT='D:\学科地图项目\web\dist'
 node .\scripts\build-site.mjs
 ```
 
 查看本地成品：
 
 ```powershell
-cd D:\学科地图-web
-$env:SERVE_ROOT='D:\学科地图-web\dist'
+cd D:\学科地图项目\web
+$env:SERVE_ROOT='D:\学科地图项目\web\dist'
 node .\scripts\server.mjs
 ```
 
@@ -66,7 +66,7 @@ NOTION_DATABASE_ID
 NOTION_PAGE_IDS
 ```
 
-迁移到其他服务器时，保留 `scripts/build-site.mjs` 生成 `dist` 的流程即可。静态托管服务只需要发布 `D:\学科地图-web\dist`，后续如果需要账号功能，可以让前端继续读取同一份静态数据，同时新增后端 API。
+迁移到其他服务器时，保留 `scripts/build-site.mjs` 生成 `dist` 的流程即可。静态托管服务只需要发布 `D:\学科地图项目\web\dist`，后续如果需要账号功能，可以让前端继续读取同一份静态数据，同时新增后端 API。
 
 ## English
 
@@ -88,17 +88,17 @@ https://github.com/amealf/disciplinary-thought-maps-content
 Local build:
 
 ```powershell
-cd D:\学科地图-web
-$env:CONTENT_ROOT='D:\学科地图-content'
-$env:SITE_OUTPUT_ROOT='D:\学科地图-web\dist'
+cd D:\学科地图项目\web
+$env:CONTENT_ROOT='D:\学科地图项目\content'
+$env:SITE_OUTPUT_ROOT='D:\学科地图项目\web\dist'
 node .\scripts\build-site.mjs
 ```
 
 Serve the built site locally:
 
 ```powershell
-cd D:\学科地图-web
-$env:SERVE_ROOT='D:\学科地图-web\dist'
+cd D:\学科地图项目\web
+$env:SERVE_ROOT='D:\学科地图项目\web\dist'
 node .\scripts\server.mjs
 ```
 
@@ -132,4 +132,4 @@ NOTION_DATABASE_ID
 NOTION_PAGE_IDS
 ```
 
-For future migration to another hosting provider, keep the `scripts/build-site.mjs` workflow that generates `dist`. Any static hosting service can publish `D:\学科地图-web\dist`. If account features are added later, the frontend can keep reading the same static data while a backend API is introduced.
+For future migration to another hosting provider, keep the `scripts/build-site.mjs` workflow that generates `dist`. Any static hosting service can publish `D:\学科地图项目\web\dist`. If account features are added later, the frontend can keep reading the same static data while a backend API is introduced.

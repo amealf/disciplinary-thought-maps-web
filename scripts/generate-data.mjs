@@ -7,7 +7,7 @@ import { loadNotionArticles } from "./sources/notion.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(scriptDir, "..");
-const defaultContentRoot = path.resolve(siteRoot, "..", "学科地图-content");
+const defaultContentRoot = path.resolve(siteRoot, "..", "content");
 const sourceRoot = path.resolve(process.env.CONTENT_ROOT || defaultContentRoot);
 const outputDir = path.resolve(process.env.OUTPUT_ROOT || path.join(siteRoot, "data"));
 const outputPath = path.join(outputDir, "site-data.json");
@@ -539,6 +539,25 @@ function buildHomeItems(items) {
   return nodes;
 }
 
+const hiddenHomeGroupTitles = new Set(["en"]);
+
+function isHiddenHomeGroupTitle(title) {
+  return hiddenHomeGroupTitles.has(normalizeHomeTitle(title));
+}
+
+function buildHomeDisplayItems(items) {
+  return buildHomeItems(items)
+    .filter((item) => !(item.level === 1 && isHiddenHomeGroupTitle(item.title)))
+    .map((item) => {
+      const hiddenRootCount = item.pathParts.length && isHiddenHomeGroupTitle(item.pathParts[0]) ? 1 : 0;
+      return {
+        level: Math.max(1, item.level - hiddenRootCount),
+        title: item.title,
+        homeKey: item.key,
+      };
+    });
+}
+
 async function buildHomeMap(subjects) {
   const subjectByTitle = new Map(
     subjects.map((subject) => [normalizeHomeTitle(subject.title), subject]),
@@ -555,13 +574,15 @@ async function buildHomeMap(subjects) {
     items = subjects.map((subject) => ({ level: 1, title: subject.title }));
   }
 
+  const displayItems = buildHomeDisplayItems(items);
   const nodes = [];
   const stack = [];
 
-  for (const item of items) {
+  for (const item of displayItems) {
     const parent = item.level > 1 ? stack[item.level - 2] : null;
     const key = parent ? `${parent.key}/${item.title}` : item.title;
     const subject =
+      subjectByHomeKey.get(item.homeKey) ??
       subjectByHomeKey.get(key) ??
       subjectByTitle.get(normalizeHomeTitle(item.title)) ??
       null;

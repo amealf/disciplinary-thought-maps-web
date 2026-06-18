@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { writeMarkdownArticleWithGuard } from "./lib/markdown-write-guard.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const defaultContentRoot = path.resolve(scriptDir, "..", "..", "学科地图-content");
+const defaultContentRoot = path.resolve(scriptDir, "..", "..", "content");
 const defaultReportPath = path.join(defaultContentRoot, "生成失败清单.json");
 
 function parseArgs(argv) {
