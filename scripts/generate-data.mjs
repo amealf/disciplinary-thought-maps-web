@@ -12,7 +12,11 @@ const sourceRoot = path.resolve(process.env.CONTENT_ROOT || defaultContentRoot);
 const outputDir = path.resolve(process.env.OUTPUT_ROOT || path.join(siteRoot, "data"));
 const outputPath = path.join(outputDir, "site-data.json");
 const articlesOutputDir = path.join(outputDir, "articles");
-const homeMapPath = path.resolve(process.env.HOME_MAP_PATH || path.join(sourceRoot, "首页学科目录.md"));
+const legacyHomeMapPath = path.resolve(process.env.HOME_MAP_PATH || path.join(sourceRoot, "首页学科目录.md"));
+const splitHomeMapPaths = [
+  path.join(sourceRoot, "首页学科目录-CN.md"),
+  path.join(sourceRoot, "首页学科目录-EN.md"),
+].map((filePath) => path.resolve(filePath));
 const contentRootLabel = process.env.CONTENT_ROOT_LABEL || "github-content";
 const ignoredDirs = new Set(["site", ".git", "node_modules", ".obsidian", "__pycache__"]);
 
@@ -62,6 +66,89 @@ function cleanName(name) {
     .trim();
 }
 
+function getChineseTitlePrefix(value) {
+  const text = String(value ?? "").trim();
+  if (!/[\u3400-\u9fff]/.test(text)) return "";
+  return text
+    .replace(/[（(][\s\S]*$/, "")
+    .replace(/[A-Za-z][\s\S]*$/, "")
+    .replace(/[：:;；\-–—（(]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getTitleMatchKeys(value) {
+  const variants = [
+    String(value ?? ""),
+    cleanName(String(value ?? "")),
+    getChineseTitlePrefix(cleanName(String(value ?? ""))),
+  ];
+
+  return new Set(variants.map(normalizeHomeTitle).filter(Boolean));
+}
+
+async function findMatchingDirectory(parentDir, title) {
+  const targetKeys = getTitleMatchKeys(title);
+  const entries = (await safeReadDir(parentDir)).filter(isContentDirectory);
+  const candidates = [];
+
+  for (const entry of entries) {
+    const entryKeys = getTitleMatchKeys(entry.name);
+    for (const key of targetKeys) {
+      if (entryKeys.has(key)) {
+        candidates.push(path.join(parentDir, entry.name));
+        break;
+      }
+    }
+  }
+
+  if (!candidates.length) return "";
+
+  const ranked = [];
+  for (const candidate of candidates) {
+    ranked.push({
+      path: candidate,
+      hasContent: await directoryHasMarkdownFile(candidate),
+      nameLength: path.basename(candidate).length,
+    });
+  }
+
+  ranked.sort((left, right) => (
+    Number(right.hasContent) - Number(left.hasContent) ||
+    left.nameLength - right.nameLength ||
+    collator.compare(path.basename(left.path), path.basename(right.path))
+  ));
+
+  return ranked[0].path;
+}
+
+async function resolveHomeItemDirectory(item, { createMissing = false } = {}) {
+  const created = [];
+  let current = sourceRoot;
+
+  for (const part of item.pathParts) {
+    const exactPath = path.join(current, part);
+    const matchedPath = await findMatchingDirectory(current, part);
+    if (matchedPath) {
+      current = matchedPath;
+      continue;
+    }
+
+    if (await isDirectoryPath(exactPath)) {
+      current = exactPath;
+      continue;
+    }
+
+    if (createMissing) {
+      await fs.mkdir(exactPath, { recursive: true });
+      created.push(path.relative(sourceRoot, exactPath));
+    }
+    current = exactPath;
+  }
+
+  return { absoluteDir: current, created };
+}
+
 function getFirstHeading(content) {
   const match = content.match(/^#\s+(.+?)\s*$/m);
   return match ? match[1].trim() : "";
@@ -93,8 +180,33 @@ async function isDirectoryPath(dir) {
   }
 }
 
+async function isFilePath(filePath) {
+  try {
+    return (await fs.stat(filePath)).isFile();
+  } catch {
+    return false;
+  }
+}
+
 function isContentDirectory(entry) {
   return entry.isDirectory() && !ignoredDirs.has(entry.name) && !entry.name.startsWith(".");
+}
+
+async function directoryHasMarkdownFile(dir) {
+  const entries = await safeReadDir(dir);
+
+  for (const entry of entries) {
+    const childPath = path.join(dir, entry.name);
+    if (entry.isFile() && entry.name.toLowerCase().endsWith(".md") && !shouldIgnoreMarkdownFile(childPath)) {
+      return true;
+    }
+  }
+
+  for (const entry of entries.filter(isContentDirectory)) {
+    if (await directoryHasMarkdownFile(path.join(dir, entry.name))) return true;
+  }
+
+  return false;
 }
 
 async function collectMarkdownFiles(dir) {
@@ -163,6 +275,9 @@ async function addDirectoryNode(context, absoluteDir, parentId, subjectId, depth
   for (const file of files) {
     await addArticleNode(context, path.join(absoluteDir, file.name), nodeId, subjectId, depth + 1);
   }
+
+  node.disabled = node.childrenIds.length === 0;
+  sortChildrenByContent(context.nodesById, nodeId);
 }
 
 async function addArticleNode(context, absoluteFile, parentId, subjectId, depth) {
@@ -231,6 +346,30 @@ async function addArticleNode(context, absoluteFile, parentId, subjectId, depth)
     excerpt,
     sourceType: "github",
   });
+}
+
+function nodeHasContent(nodesById, nodeId) {
+  const node = nodesById[nodeId];
+  if (!node) return false;
+  if (node.type === "article") return true;
+  return node.childrenIds.some((childId) => nodeHasContent(nodesById, childId));
+}
+
+function sortChildrenByContent(nodesById, nodeId) {
+  const node = nodesById[nodeId];
+  if (!node?.childrenIds?.length) return;
+
+  node.childrenIds = node.childrenIds
+    .map((childId, index) => ({
+      childId,
+      index,
+      hasContent: nodeHasContent(nodesById, childId),
+    }))
+    .sort((left, right) => (
+      Number(right.hasContent) - Number(left.hasContent) ||
+      left.index - right.index
+    ))
+    .map((item) => item.childId);
 }
 
 function findChildNodeByTitle(nodesById, parentId, title) {
@@ -459,6 +598,8 @@ function makePathText(nodesById, nodeId) {
 function normalizeHomeTitle(value) {
   return String(value ?? "")
     .toLocaleLowerCase("zh-CN")
+    .replace(/[、，,]/g, " ")
+    .replace(/[()（）]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -509,16 +650,35 @@ function parseHomeMapText(content) {
 }
 
 async function readHomeMapItems() {
-  try {
-    return parseHomeMapText(await fs.readFile(homeMapPath, "utf8"));
-  } catch {
-    return [];
+  const paths = await getHomeMapPaths();
+  const items = [];
+
+  for (const filePath of paths) {
+    try {
+      items.push(...parseHomeMapText(await fs.readFile(filePath, "utf8")));
+    } catch {
+      // ignore missing optional map files
+    }
   }
+
+  return items;
+}
+
+async function getHomeMapPaths() {
+  if (process.env.HOME_MAP_PATH) return [legacyHomeMapPath];
+
+  const existingSplitPaths = [];
+  for (const filePath of splitHomeMapPaths) {
+    if (await isFilePath(filePath)) existingSplitPaths.push(filePath);
+  }
+
+  return existingSplitPaths.length ? existingSplitPaths : [legacyHomeMapPath];
 }
 
 function buildHomeItems(items) {
   const nodes = [];
   const stack = [];
+  const nodesByKey = new Map();
 
   for (const item of items) {
     const parent = item.level > 1 ? stack[item.level - 2] : null;
@@ -531,12 +691,36 @@ function buildHomeItems(items) {
       pathParts,
     };
 
+    const normalizedKey = normalizeHomeTitle(key);
+    if (nodesByKey.has(normalizedKey)) {
+      stack[item.level - 1] = nodesByKey.get(normalizedKey);
+      stack.length = item.level;
+      continue;
+    }
+
     nodes.push(node);
+    nodesByKey.set(normalizedKey, node);
     stack[item.level - 1] = node;
     stack.length = item.level;
   }
 
   return nodes;
+}
+
+async function ensureHomeMapDirectories(items) {
+  const created = [];
+  const seen = new Set();
+
+  for (const item of buildHomeItems(items)) {
+    const result = await resolveHomeItemDirectory(item, { createMissing: true });
+    for (const relativePath of result.created) {
+      if (seen.has(relativePath)) continue;
+      seen.add(relativePath);
+      created.push(relativePath);
+    }
+  }
+
+  return created;
 }
 
 const hiddenHomeGroupTitles = new Set(["en"]);
@@ -558,7 +742,7 @@ function buildHomeDisplayItems(items) {
     });
 }
 
-async function buildHomeMap(subjects) {
+async function buildHomeMap(subjects, items = null) {
   const subjectByTitle = new Map(
     subjects.map((subject) => [normalizeHomeTitle(subject.title), subject]),
   );
@@ -568,15 +752,16 @@ async function buildHomeMap(subjects) {
       .map((subject) => [subject.homeKey, subject]),
   );
 
-  let items = await readHomeMapItems();
+  let homeItems = items ?? await readHomeMapItems();
 
-  if (!items.length) {
-    items = subjects.map((subject) => ({ level: 1, title: subject.title }));
+  if (!homeItems.length) {
+    homeItems = subjects.map((subject) => ({ level: 1, title: subject.title }));
   }
 
-  const displayItems = buildHomeDisplayItems(items);
+  const displayItems = buildHomeDisplayItems(homeItems);
   const nodes = [];
   const stack = [];
+  const sourcePaths = (await getHomeMapPaths()).map((filePath) => path.relative(sourceRoot, filePath));
 
   for (const item of displayItems) {
     const parent = item.level > 1 ? stack[item.level - 2] : null;
@@ -614,7 +799,8 @@ async function buildHomeMap(subjects) {
   }
 
   return {
-    sourcePath: path.relative(sourceRoot, homeMapPath),
+    sourcePath: sourcePaths.join(", "),
+    sourcePaths,
     nodes: nodes.map(({ key, ...node }) => node),
     links: nodes
       .filter((node) => node.parentId)
@@ -623,12 +809,14 @@ async function buildHomeMap(subjects) {
 }
 
 async function build() {
+  const rawHomeItems = await readHomeMapItems();
+  const createdHomeDirs = await ensureHomeMapDirectories(rawHomeItems);
   const rootEntries = (await safeReadDir(sourceRoot)).sort(compareOrdinal);
   const rootDirs = rootEntries.filter((entry) => isContentDirectory(entry));
   const rootDirByTitle = new Map(
     rootDirs.map((entry) => [normalizeHomeTitle(entry.name), entry]),
   );
-  const homeItems = buildHomeItems(await readHomeMapItems());
+  const homeItems = buildHomeItems(rawHomeItems);
   const homeParentKeys = new Set(homeItems.map((item) => item.parentKey).filter(Boolean));
   const subjectCandidates = [];
   const usedSubjectPaths = new Set();
@@ -637,7 +825,7 @@ async function build() {
     for (const item of homeItems) {
       if (homeParentKeys.has(item.key)) continue;
 
-      let absoluteSubject = path.join(sourceRoot, ...item.pathParts);
+      let absoluteSubject = (await resolveHomeItemDirectory(item)).absoluteDir;
       if (!(await isDirectoryPath(absoluteSubject))) {
         const fallbackDir = rootDirByTitle.get(normalizeHomeTitle(item.title));
         absoluteSubject = fallbackDir ? path.join(sourceRoot, fallbackDir.name) : "";
@@ -723,6 +911,7 @@ async function build() {
     for (const file of files) {
       await addArticleNode(context, path.join(absoluteSubject, file.name), subjectId, subjectId, 1);
     }
+    sortChildrenByContent(result.nodesById, subjectId);
 
   }
 
@@ -738,7 +927,7 @@ async function build() {
   }
 
   recalculateSubjectStats(result);
-  result.homeMap = await buildHomeMap(result.subjects);
+  result.homeMap = await buildHomeMap(result.subjects, rawHomeItems);
 
   const articlePayloads = result.articlePayloads;
   delete result.articlePayloads;
@@ -756,6 +945,9 @@ async function build() {
   console.log(`Generated ${outputPath}`);
   console.log(`Subjects: ${result.subjects.length}`);
   console.log(`Articles: ${Object.keys(result.articlesById).length}`);
+  if (createdHomeDirs.length) {
+    console.log(`Created home map directories: ${createdHomeDirs.length}`);
+  }
   if (result.skippedInvalidArticles.length) {
     console.log(`Skipped invalid articles: ${result.skippedInvalidArticles.length}`);
   }

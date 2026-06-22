@@ -42,7 +42,6 @@ const UI_TEXT = {
     expandAll: "展开所有分支",
     fitScreen: "适应屏幕",
     folders: "个文件夹",
-    fullIndex: "完整索引",
     headingLevel: "标题级别",
     home: "首页",
     homeHeroTitle: "深入研究一切",
@@ -114,7 +113,6 @@ const UI_TEXT = {
     expandAll: "Expand all branches",
     fitScreen: "FixScreen",
     folders: "folders",
-    fullIndex: "Full Index",
     headingLevel: "Heading level",
     home: "Home",
     homeHeroTitle: "Deep research everything",
@@ -791,6 +789,30 @@ function getHomeChildren(topicId) {
   return getHomeTopics().filter((topic) => topic.parentId === topicId);
 }
 
+function homeTopicHasContent(topic) {
+  if (!topic) return false;
+  const subject = topic.subjectId ? getSubject(topic.subjectId) : null;
+  if (subject && (subject.articleCount > 0 || subject.groupCount > 0)) return true;
+  return getHomeChildren(topic.id).some((child) => homeTopicHasContent(child));
+}
+
+function getContentHomeTopicCount() {
+  return getHomeTopics()
+    .filter((topic) => matchesCurrentLanguageTopic(topic))
+    .filter((topic) => homeTopicHasContent(topic))
+    .length;
+}
+
+function getSortedHomeChildren(topicId) {
+  return getHomeChildren(topicId)
+    .map((topic, index) => ({ topic, index, hasContent: homeTopicHasContent(topic) }))
+    .sort((left, right) => (
+      Number(right.hasContent) - Number(left.hasContent) ||
+      left.index - right.index
+    ))
+    .map((item) => item.topic);
+}
+
 function getHomeTopicTargetHref(topic) {
   if (!topic) return "";
   if (topic.href) return topic.href;
@@ -823,6 +845,7 @@ function getHomeTopicHref(topic) {
 function getRandomSubjectHref() {
   const topics = getHomeTopics()
     .filter((topic) => matchesCurrentLanguageTopic(topic))
+    .filter((topic) => homeTopicHasContent(topic))
     .map((topic) => getHomeTopicTargetHref(topic))
     .filter(Boolean);
   if (topics.length) return topics[Math.floor(Math.random() * topics.length)];
@@ -904,8 +927,9 @@ function buildDirectoryMapSubject(groupId) {
 
   function addTopicNode(topic, parentId, depth, includeDescendants) {
     const nodeId = getDirectoryNodeId(groupId, topic.id);
-    const children = includeDescendants ? getHomeChildren(topic.id) : [];
+    const children = includeDescendants ? getSortedHomeChildren(topic.id) : [];
     const targetHref = getHomeTopicTargetHref(topic);
+    const hasContent = homeTopicHasContent(topic);
     state.data.nodesById[nodeId] = {
       id: nodeId,
       type: depth === 1 ? "level1" : "level2",
@@ -917,8 +941,8 @@ function buildDirectoryMapSubject(groupId) {
       depth,
       childrenIds: [],
       articleId: null,
-      href: targetHref,
-      disabled: !targetHref,
+      href: hasContent ? targetHref : "",
+      disabled: !hasContent,
     };
     state.data.nodesById[parentId].childrenIds.push(nodeId);
     createdIds.add(nodeId);
@@ -930,7 +954,7 @@ function buildDirectoryMapSubject(groupId) {
     return nodeId;
   }
 
-  for (const child of getHomeChildren(group.id)) {
+  for (const child of getSortedHomeChildren(group.id)) {
     addTopicNode(child, rootId, 1, true);
   }
 
@@ -1388,7 +1412,7 @@ function renderHomeGroupPage(groupId) {
   const directorySubject = buildDirectoryMapSubject(group.id);
   if (!directorySubject) return;
   const parentTopic = getHomeParent(group.id);
-  state.expanded = new Set(directorySubject.directoryNodeIds.filter((nodeId) => getNode(nodeId)?.childrenIds.length));
+  state.expanded = new Set([directorySubject.rootNodeId]);
   state.activeNodeId = directorySubject.activeNodeId;
   state.selectedArticleId = null;
   state.mapTransform = { x: 0, y: 0, scale: getDefaultMapScale() };
@@ -1724,11 +1748,14 @@ function getAllExistingDisciplines(level = 1) {
         const subject = topic.subjectId ? getSubject(topic.subjectId) : null;
         const children = getHomeChildren(topic.id).filter((child) => matchesCurrentLanguageTopic(child));
         const pathText = getHomeTopicPath(topic.id).map((item) => item.title).join(" / ");
+        const hasContent = homeTopicHasContent(topic);
         return {
           id: topic.id,
           displayTitle: getLocalizedTitleText(topic.title),
-          href: getHomeTopicHref(topic),
+          href: hasContent ? getHomeTopicHref(topic) : "",
           path: getLocalizedPathText(pathText),
+          hasContent,
+          disabled: !hasContent,
           articleCount: subject?.articleCount ?? 0,
           groupCount: subject?.groupCount ?? children.length,
           detailText: children.length
@@ -1747,6 +1774,8 @@ function getAllExistingDisciplines(level = 1) {
       ...subject,
       displayTitle: getLocalizedTitleText(subject.title),
       href: `#/subject/${subject.id}`,
+      hasContent: true,
+      disabled: false,
       detailText: `${formatCount(subject.groupCount, "folders")} · ${formatCount(subject.articleCount, "articles")}`,
     }))
     .filter((subject) => subject.displayTitle)
@@ -1765,7 +1794,18 @@ function shuffleItems(items) {
   return shuffled;
 }
 
+function sortDisciplinesByContent(items) {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => (
+      Number(Boolean(right.item.hasContent)) - Number(Boolean(left.item.hasContent)) ||
+      left.index - right.index
+    ))
+    .map(({ item }) => item);
+}
+
 function renderHeadingLevelFilter(selectedLevel) {
+  const chineseLevelLabels = ["一级主题", "二级主题", "三级主题", "四级主题"];
   return `
     <nav class="heading-level-filter" aria-label="${escapeHtml(t("headingLevel"))}">
       ${[1, 2, 3, 4].map((level) => `
@@ -1773,7 +1813,7 @@ function renderHeadingLevelFilter(selectedLevel) {
           class="entry-stat heading-level-option ${level === selectedLevel ? "active" : ""}"
           href="#/disciplines?level=${level}"
           aria-current="${level === selectedLevel ? "true" : "false"}"
-        >${state.language === "cn" ? `第 ${level} 级` : `Level ${level}`}</a>
+        >${state.language === "cn" ? chineseLevelLabels[level - 1] : `Level ${level}`}</a>
       `).join("")}
     </nav>
   `;
@@ -1836,24 +1876,45 @@ function assignRandomDisciplineColors(items) {
   });
 }
 
+function renderDisciplineCard(discipline) {
+  const isDisabled = Boolean(discipline.disabled);
+  const tagName = isDisabled ? "span" : "a";
+  const actionAttributes = isDisabled
+    ? `role="link" aria-disabled="true"`
+    : `href="${escapeHtml(discipline.href)}"`;
+
+  return `
+    <${tagName}
+      class="discipline-card ${isDisabled ? "disabled" : ""}"
+      ${actionAttributes}
+      data-discipline-card
+      data-title="${escapeHtml(discipline.displayTitle)}"
+      style="--discipline-accent: ${escapeHtml(discipline.accentColor)}"
+    >
+      <strong>${escapeHtml(discipline.displayTitle)}</strong>
+      <small>${escapeHtml(discipline.detailText)}</small>
+    </${tagName}>
+  `;
+}
+
 function renderAllDisciplinesPage() {
   const selectedLevel = getSelectedDisciplineLevel();
-  const allTopicCount = getAllExistingDisciplines("all").length || getAllExistingDisciplines().length;
+  const allTopicCount = getContentHomeTopicCount();
   const disciplineItems = getAllExistingDisciplines(selectedLevel);
-  const displayedDisciplines = selectedLevel === "all" ? shuffleItems(disciplineItems) : disciplineItems;
+  const displayedDisciplines = sortDisciplinesByContent(
+    selectedLevel === "all" ? shuffleItems(disciplineItems) : disciplineItems,
+  );
   const disciplines = assignRandomDisciplineColors(displayedDisciplines);
   app.innerHTML = `
     <div class="app-shell">
       ${renderHomeThemeBar()}
       <main class="entries-page disciplines-page">
       <section class="entries-hero">
-        <p class="entries-kicker">${escapeHtml(t("fullIndex"))}</p>
-        <h1>${state.language === "cn" ? "全部已有主题" : "All Existing Topics"}</h1>
-        <p class="entries-intro">${escapeHtml(t("entriesIntro"))}</p>
+        <h1>${state.language === "cn" ? "所有主题" : "All Existing Topics"}</h1>
         <div class="discipline-hero-row">
           <div class="entries-stats">
             <a class="entry-stat entry-stat-total all-topics-option ${selectedLevel === "all" ? "active" : ""}" href="#/disciplines?level=all" aria-current="${selectedLevel === "all" ? "true" : "false"}">
-              <span>${state.language === "cn" ? "全部主题" : "All Topics"}</span>
+              <span>${state.language === "cn" ? "所有主题" : "All Topics"}</span>
               <strong>${allTopicCount}</strong>
             </a>
             ${renderHeadingLevelFilter(selectedLevel)}
@@ -1869,14 +1930,9 @@ function renderAllDisciplinesPage() {
           </div>
         </div>
       </section>
-      <section class="discipline-board" aria-label="${state.language === "cn" ? "全部已有主题" : "All existing topics"}">
+      <section class="discipline-board" aria-label="${state.language === "cn" ? "所有主题" : "All existing topics"}">
         <div class="discipline-grid">
-          ${disciplines.map((discipline) => `
-            <a class="discipline-card" href="${escapeHtml(discipline.href)}" data-discipline-card data-title="${escapeHtml(discipline.displayTitle)}" style="--discipline-accent: ${escapeHtml(discipline.accentColor)}">
-              <strong>${escapeHtml(discipline.displayTitle)}</strong>
-              <small>${escapeHtml(discipline.detailText)}</small>
-            </a>
-          `).join("")}
+          ${disciplines.map(renderDisciplineCard).join("")}
         </div>
       </section>
     </main>
@@ -2331,6 +2387,13 @@ function cleanMapTitle(value) {
 
 function splitMapTitle(value) {
   const title = cleanMapTitle(value);
+  const parentheticalMatch = title.match(/^(.+?)[（(]\s*([A-Za-z][\s\S]*?)\s*[）)]$/);
+  if (parentheticalMatch) {
+    return {
+      primary: parentheticalMatch[1].trim(),
+      secondary: parentheticalMatch[2].trim(),
+    };
+  }
   const match = title.match(/^(.+?)\s+([A-Za-z][\s\S]*)$/);
   if (!match) return { primary: title, secondary: "" };
   return { primary: match[1].trim(), secondary: match[2].trim() };
@@ -2373,6 +2436,54 @@ function getTextVisualUnits(value) {
 
 function clampNumber(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function roundPixel(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function getAdaptiveFontSize(text, baseSize, minSize, comfortableUnits, hardUnits) {
+  const units = getTextVisualUnits(text);
+  if (units <= comfortableUnits) return baseSize;
+  if (units >= hardUnits) return minSize;
+  const ratio = (units - comfortableUnits) / (hardUnits - comfortableUnits);
+  return roundPixel(baseSize - (baseSize - minSize) * ratio);
+}
+
+function getMindTitleSizing(node, title) {
+  if (node.type === "subject") {
+    return {
+      primaryFontSize: getAdaptiveFontSize(title.primary, 36, 24, 9.5, 18),
+      secondaryFontSize: getAdaptiveFontSize(title.secondary, 12, 10.5, 28, 58),
+      primaryMaxLength: 16,
+      secondaryMaxLength: 54,
+    };
+  }
+
+  if (node.type === "level1") {
+    return {
+      primaryFontSize: getAdaptiveFontSize(title.primary, 20, 15, 10, 22),
+      secondaryFontSize: getAdaptiveFontSize(title.secondary, 12, 10, 34, 68),
+      primaryMaxLength: 18,
+      secondaryMaxLength: 52,
+    };
+  }
+
+  if (node.type === "level2") {
+    return {
+      primaryFontSize: getAdaptiveFontSize(title.primary, 17, 13, 10, 22),
+      secondaryFontSize: getAdaptiveFontSize(title.secondary, 10.5, 9.5, 30, 58),
+      primaryMaxLength: 18,
+      secondaryMaxLength: 38,
+    };
+  }
+
+  return {
+    primaryFontSize: 17,
+    secondaryFontSize: 11,
+    primaryMaxLength: MIND_PRIMARY_MAX_CHARS,
+    secondaryMaxLength: 44,
+  };
 }
 
 function estimateTextWidth(lines, fontSize, horizontalPadding) {
@@ -2428,25 +2539,34 @@ function getArticleMindTitle(value) {
 
 function calculateMindNodeBox(node) {
   if (node.type === "subject") {
-    const titleText = getMindNodeDisplayTitle(node);
-    const textWidth = estimateTextWidth([titleText], 36, 56);
+    const title = splitMapTitle(getMindNodeDisplayTitle(node));
+    const sizing = getMindTitleSizing(node, title);
+    const primaryLines = getMindTextLines(title.primary, sizing.primaryMaxLength);
+    const secondaryLines = title.secondary ? getMindTextLines(title.secondary, sizing.secondaryMaxLength) : [];
+    const labelWidth = Math.max(
+      estimateTextWidth(primaryLines, sizing.primaryFontSize, 56),
+      secondaryLines.length ? estimateTextWidth(secondaryLines, sizing.secondaryFontSize, 56) : 0,
+    );
+    const height = 34 +
+      primaryLines.length * Math.ceil(sizing.primaryFontSize * 1.12) +
+      secondaryLines.length * Math.ceil(sizing.secondaryFontSize * 1.2);
     return {
-      width: clampNumber(textWidth + 44, 250, 600),
-      height: 88,
+      width: clampNumber(labelWidth + 12, 250, 520),
+      height: Math.max(88, height),
     };
   }
   if (node.type === "level1" || node.type === "level2") {
     const title = splitMapTitle(getMindNodeDisplayTitle(node));
-    const maxLength = getMindPrimaryMaxLength(node);
-    const primaryLines = getMindTextLines(title.primary, maxLength);
-    const secondaryLines = title.secondary ? getMindTextLines(title.secondary, node.type === "level1" ? 52 : 38) : [];
-    const primaryFontSize = node.type === "level1" ? 20 : 17;
-    const secondaryFontSize = node.type === "level1" ? 12 : 10.5;
+    const sizing = getMindTitleSizing(node, title);
+    const primaryLines = getMindTextLines(title.primary, sizing.primaryMaxLength);
+    const secondaryLines = title.secondary ? getMindTextLines(title.secondary, sizing.secondaryMaxLength) : [];
     const labelWidth = Math.max(
-      estimateTextWidth(primaryLines, primaryFontSize, 34),
-      secondaryLines.length ? estimateTextWidth(secondaryLines, secondaryFontSize, 34) : 0,
+      estimateTextWidth(primaryLines, sizing.primaryFontSize, 34),
+      secondaryLines.length ? estimateTextWidth(secondaryLines, sizing.secondaryFontSize, 34) : 0,
     );
-    const baseHeight = 20 + primaryLines.length * (node.type === "level1" ? 24 : 20) + secondaryLines.length * (node.type === "level1" ? 16 : 13);
+    const baseHeight = 20 +
+      primaryLines.length * Math.ceil(sizing.primaryFontSize * 1.18) +
+      secondaryLines.length * Math.ceil(sizing.secondaryFontSize * 1.24);
     return {
       width: clampNumber(labelWidth + 44, node.type === "level1" ? 220 : 180, node.type === "level1" ? 560 : 430),
       height: Math.max(node.type === "level1" ? 72 : 56, baseHeight),
@@ -2512,7 +2632,7 @@ function layoutGraph(subject) {
   const rowGap = 24;
   const rootRowGap = 11;
   const columnGap = 440;
-  const rootX = 190;
+  const rootX = Math.max(190, rootBox.width / 2 + 36);
   const firstColumnDotX = rootX + rootBox.width / 2 + 64;
   const top = 44;
   const margin = { right: 220, bottom: 120 };
@@ -2831,7 +2951,8 @@ function doRenderGraph(subject) {
     const tagName = isArticle || isLink ? "a" : "button";
     const displayTitle = getMindNodeDisplayTitle(node);
     const title = isArticle ? getArticleMindTitle(displayTitle) : splitMapTitle(displayTitle);
-    const primaryMaxLength = getMindPrimaryMaxLength(node);
+    const sizing = isArticle ? null : getMindTitleSizing(node, title);
+    const primaryMaxLength = isArticle ? getMindPrimaryMaxLength(node) : sizing.primaryMaxLength;
     const labelContent = isArticle
       ? `<span class="mind-article-title">
           <span class="mind-article-primary">${renderMindPrimaryText(title.primary, MIND_PRIMARY_MAX_CHARS)}</span>
@@ -2855,7 +2976,7 @@ function doRenderGraph(subject) {
         data-depth="${node.depth || 0}"
         title="${escapeHtml(displayTitle)}"
         aria-label="${escapeHtml(`${displayTitle}, ${meta}`)}"
-        style="left:${position.x - box.width / 2}px; top:${position.y - box.height / 2}px; width:${box.width}px; height:${box.height}px; --node-color:${color}; --node-delay:${nodeDelay}s; --from-x:${moveDeltaX}px; --from-y:${moveDeltaY}px;"
+        style="left:${position.x - box.width / 2}px; top:${position.y - box.height / 2}px; width:${box.width}px; height:${box.height}px; --node-color:${color}; --node-delay:${nodeDelay}s; --from-x:${moveDeltaX}px; --from-y:${moveDeltaY}px; ${sizing ? `--mind-primary-size:${sizing.primaryFontSize}px; --mind-secondary-size:${sizing.secondaryFontSize}px;` : ""}"
       >
         ${dot}
         <span class="mind-label">
