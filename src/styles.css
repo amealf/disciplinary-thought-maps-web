@@ -2627,9 +2627,14 @@ mark {
   cursor: default;
 }
 
-.mind-node.disabled,
+.mind-node.disabled:not(.has-children),
 .mind-node:disabled {
   cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.mind-node.disabled.has-children {
+  cursor: pointer;
   opacity: 0.56;
 }
 

@@ -77,11 +77,26 @@ function getChineseTitlePrefix(value) {
     .trim();
 }
 
+function getHomeTitleAliasVariants(value) {
+  const title = getChineseTitlePrefix(cleanName(String(value ?? "")));
+  const variants = [];
+  const disciplinePrefixes = ["社会学"];
+
+  for (const prefix of disciplinePrefixes) {
+    if (title.startsWith(prefix) && title.length > prefix.length) {
+      variants.push(title.slice(prefix.length));
+    }
+  }
+
+  return variants;
+}
+
 function getTitleMatchKeys(value) {
   const variants = [
     String(value ?? ""),
     cleanName(String(value ?? "")),
     getChineseTitlePrefix(cleanName(String(value ?? ""))),
+    ...getHomeTitleAliasVariants(value),
   ];
 
   return new Set(variants.map(normalizeHomeTitle).filter(Boolean));
@@ -707,11 +722,21 @@ function buildHomeItems(items) {
   return nodes;
 }
 
+const sociologyHomeOnlyTopicTitles = new Set(
+  ["理论传统", "代表学者", "经典文本", "当代议题"].map(normalizeHomeTitle),
+);
+
+function shouldCreateHomeMapDirectory(item) {
+  const pathKeys = item.pathParts.map(normalizeHomeTitle);
+  return !(pathKeys.includes(normalizeHomeTitle("社会学")) && sociologyHomeOnlyTopicTitles.has(normalizeHomeTitle(item.title)));
+}
+
 async function ensureHomeMapDirectories(items) {
   const created = [];
   const seen = new Set();
 
   for (const item of buildHomeItems(items)) {
+    if (!shouldCreateHomeMapDirectory(item)) continue;
     const result = await resolveHomeItemDirectory(item, { createMissing: true });
     for (const relativePath of result.created) {
       if (seen.has(relativePath)) continue;

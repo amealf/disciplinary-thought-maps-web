@@ -2947,6 +2947,7 @@ function doRenderGraph(subject) {
     const nodeDelay = 0;
     const isArticle = node.type === "article";
     const isDisabled = Boolean(node.disabled);
+    const isUnavailableLeaf = isDisabled && !hasChildren;
     const isLink = Boolean(node.href) && !isDisabled;
     const tagName = isArticle || isLink ? "a" : "button";
     const displayTitle = getMindNodeDisplayTitle(node);
@@ -2966,7 +2967,7 @@ function doRenderGraph(subject) {
       ? `href="${escapeHtml(articleNodeHref(node))}" target="_blank" rel="noopener noreferrer"`
       : isLink
         ? `href="${escapeHtml(node.href)}"`
-        : `type="button"${isDisabled ? " disabled aria-disabled=\"true\"" : ""}`;
+        : `type="button"${isUnavailableLeaf ? " disabled aria-disabled=\"true\"" : ""}`;
 
     nodes.push(`
       <${tagName}
@@ -3115,7 +3116,12 @@ function getNodeTone(node) {
 }
 
 function getNodeMeta(node) {
-  if (node.disabled) return t("unavailable");
+  if (node.disabled) {
+    if (!getVisibleChildIds(node).length) return t("unavailable");
+    return state.expanded.has(node.id)
+      ? `${t("unavailable")} · ${t("expanded")}`
+      : `${t("unavailable")} · ${t("expandable")}`;
+  }
   if (node.type === "subject") return `${t("overview")} · ${formatCount(getVisibleChildIds(node).length, "branches")}`;
   if (node.type === "article") return t("article");
   return state.expanded.has(node.id) ? t("expanded") : t("expandable");
@@ -3475,7 +3481,8 @@ function bindGraphEvents(subject) {
       if (!element || !nodeLayer.contains(element)) return;
       const nodeId = element.getAttribute("data-node");
       const node = getNode(nodeId);
-      if (node?.type === "article" || node?.href || node?.disabled) return;
+      const hasVisibleChildren = getVisibleChildIds(node).length > 0;
+      if (node?.type === "article" || node?.href || (node?.disabled && !hasVisibleChildren)) return;
       event.stopPropagation();
       event.preventDefault();
       activateNode(nodeId);
