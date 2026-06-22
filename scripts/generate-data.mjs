@@ -408,6 +408,7 @@ function createSubject(result, subjectId, title, rawTitle, relativePath, homeKey
     return result.subjects.find((subject) => subject.id === subjectId) ?? null;
   }
 
+  const displayPathParts = getDisplayPathParts(homeKey, relativePath, title);
   result.nodesById[subjectId] = {
     id: subjectId,
     type: "subject",
@@ -420,6 +421,7 @@ function createSubject(result, subjectId, title, rawTitle, relativePath, homeKey
     childrenIds: [],
     articleId: null,
     sourceType,
+    displayPathParts,
   };
 
   const subject = {
@@ -442,7 +444,7 @@ function createSubject(result, subjectId, title, rawTitle, relativePath, homeKey
     nodeId: subjectId,
     articleId: null,
     title,
-    pathText: toPosixPath(relativePath),
+    pathText: displayPathParts.join(" / "),
     excerpt: "0 篇文章",
     sourceType,
   });
@@ -604,10 +606,23 @@ function makePathText(nodesById, nodeId) {
   const parts = [];
   let cursor = nodesById[nodeId];
   while (cursor) {
-    parts.unshift(cursor.title);
+    if (!cursor.parentId && Array.isArray(cursor.displayPathParts) && cursor.displayPathParts.length) {
+      parts.unshift(...cursor.displayPathParts);
+    } else {
+      parts.unshift(cursor.title);
+    }
     cursor = cursor.parentId ? nodesById[cursor.parentId] : null;
   }
   return parts.join(" / ");
+}
+
+function getDisplayPathParts(homeKey, relativePath, title) {
+  const rawParts = String(homeKey || toPosixPath(relativePath) || title || "")
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const parts = rawParts.length > 1 ? rawParts.slice(1) : rawParts;
+  return parts.length ? parts : [title].filter(Boolean);
 }
 
 function normalizeHomeTitle(value) {
