@@ -5,6 +5,23 @@ const TABLET_MAP_SCALE = 0.82;
 const MOBILE_MAP_SCALE = 0.66;
 const HOME_RANDOM_TITLE_COUNT = 24;
 const MIND_PRIMARY_MAX_CHARS = 30;
+// Set to true when empty/unavailable map nodes should appear gray.
+const SHOW_EMPTY_NODES_AS_GRAY = false;
+// Set to true when the Demo should follow the operating system's reduced-motion preference.
+const DEMO_RESPECT_REDUCED_MOTION = false;
+const DEMO_FEATURED_ARTICLE_HREF = "#/article/article-bfb8bf0d3158b807";
+const DEMO_DETAIL_MEDIA_PAGES = [
+  {
+    src: "./demo-assets/sociology-discipline-history.png",
+    alt: "从学科史展开的多层级社会学结构地图",
+    imageLabel: "社会学学科史结构地图",
+  },
+  {
+    src: "./demo-assets/sociology-inquiry-objects.png",
+    alt: "社会学研究对象的多层级结构地图",
+    imageLabel: "社会学研究对象结构地图",
+  },
+];
 const THEME_STORAGE_KEY = "discipline-map-theme";
 const LANGUAGE_STORAGE_KEY = "discipline-map-language";
 const DEFAULT_THEME = { palette: "color", tone: "dark" };
@@ -36,7 +53,7 @@ const UI_TEXT = {
     documentHomeTitle: "深入研究一切 - Seeking",
     entriesIntro: "Markdown 目录主题与学科地图。",
     existingSubjects: "现存科目",
-    randomSubject: "随机学科",
+    projectOverview: "项目介绍",
     expandable: "可展开",
     expanded: "已展开",
     expandAll: "展开所有分支",
@@ -107,7 +124,7 @@ const UI_TEXT = {
     documentHomeTitle: "Deep Research Everything - Seeking",
     entriesIntro: "Markdown directory topics and subject maps.",
     existingSubjects: "Existing Subjects",
-    randomSubject: "Random Subject",
+    projectOverview: "Project Overview",
     expandable: "Expandable",
     expanded: "Expanded",
     expandAll: "Expand all branches",
@@ -187,6 +204,7 @@ const state = {
   articleContentLoading: new Set(),
   homeSearchIndex: -1,
   homeAnimation: null,
+  demoAnimation: null,
   theme: loadThemePreference(),
   language: loadLanguagePreference(),
 };
@@ -523,6 +541,12 @@ function matchesCurrentLanguageTopic(topic) {
   return matchesCurrentLanguageItem(topic.title, pathText);
 }
 
+function shouldTrimInfluentialArticlePaperSuffix(node) {
+  if (node?.type !== "level2") return false;
+  const parent = node.parentId ? getNode(node.parentId) : null;
+  return /^影响力论文与章节(?:\s|$)/.test(cleanDisplayText(parent?.title || ""));
+}
+
 function getMindNodeDisplayTitle(node) {
   if (!node) return "";
   if (isConceptArticleNode(node)) {
@@ -532,7 +556,10 @@ function getMindNodeDisplayTitle(node) {
     return [primary, secondary].filter(Boolean).join(" ");
   }
   const rawTitle = node.type === "article" ? node.title || node.shortTitle : node.title;
-  return getLocalizedTitleText(rawTitle);
+  const displayTitle = getLocalizedTitleText(rawTitle);
+  return shouldTrimInfluentialArticlePaperSuffix(node)
+    ? displayTitle.replace(/论文(?=\s+[A-Za-z]|$)/u, "")
+    : displayTitle;
 }
 
 function getVisibleChildIds(node) {
@@ -650,6 +677,9 @@ function parseRoute() {
   const params = new URLSearchParams(query);
   const parts = pathname.split("/").filter(Boolean);
 
+  if (parts[0] === "demo") {
+    return { name: "demo", params };
+  }
   if (parts[0] === "subject" && parts[1]) {
     return { name: "subject", subjectId: decodeURIComponent(parts[1]), params };
   }
@@ -1134,6 +1164,11 @@ function render() {
   if (!state.data) return;
   applyTheme();
   if (state.route.name !== "home") stopHomeAnimation();
+  if (state.route.name !== "demo") stopDemoAnimation();
+  if (state.route.name === "demo") {
+    renderReferenceDemoPage();
+    return;
+  }
   if (state.route.name === "subject") {
     renderSubjectPage(state.route.subjectId);
     return;
@@ -1189,14 +1224,6 @@ function bindGlobalHeader() {
   bindThemeControls();
 }
 
-function bindHomeActions() {
-  const randomSubjectLink = app.querySelector('[data-action="random-subject"]');
-  randomSubjectLink?.addEventListener("click", (event) => {
-    event.preventDefault();
-    window.location.hash = getRandomSubjectHref();
-  });
-}
-
 function renderHomeThemeBar(searchValue = "") {
   return `
     <header class="home-theme-bar">
@@ -1239,7 +1266,7 @@ function renderHomePage() {
             </h1>
             <p class="home-hero-subtitle">${state.language === "cn" ? "任何主题的" : "Gain "}<span class="subtitle-highlight">${state.language === "cn" ? "结构化知识" : "structured knowledge"}</span>${state.language === "cn" ? "" : " on any topic."}</p>
             <div class="home-hero-actions">
-              <a class="home-random-subject-link" href="#/disciplines" data-action="random-subject"><span class="home-cta-label">${escapeHtml(t("randomSubject"))}</span></a>
+              <a class="home-demo-link" href="#/demo"><span class="home-cta-label">${escapeHtml(t("projectOverview"))}</span></a>
               <a class="home-all-entries-link" href="#/disciplines"><span class="home-cta-label">${escapeHtml(t("existingSubjects"))}</span></a>
             </div>
           </div>
@@ -1275,8 +1302,747 @@ function renderHomePage() {
   `;
 
   bindGlobalHeader(query);
-  bindHomeActions();
   state.homeAnimation = startHomeExplore();
+}
+
+function getDemoSociologyHref() {
+  const sociologyTopic = getHomeTopics().find((topic) => normalizeText(topic.title).startsWith(normalizeText("社会学")));
+  return sociologyTopic ? getHomeTopicTargetHref(sociologyTopic) : "#/disciplines";
+}
+
+function renderReferenceDemoPage() {
+  stopHomeAnimation();
+  stopDemoAnimation();
+  document.title = "Seeking. Everything.";
+  const sociologyHref = getDemoSociologyHref();
+
+  app.innerHTML = `
+    <main class="reference-demo ${DEMO_RESPECT_REDUCED_MOTION ? "" : "motion-full"}">
+      ${renderHomeThemeBar()}
+
+      <section class="reference-hero-wrap" id="demo-start" data-reference-section>
+        <div class="reference-hero-stage" data-reference-hero>
+          <div class="reference-container reference-hero-grid">
+            <div class="reference-hero-copy">
+              <h1 class="reference-hero-title">
+                <span class="hero-title-main">Seeking.</span>
+                <span class="hero-title-sub">Everything.</span>
+              </h1>
+              <p class="reference-hero-lede">获得任意主题的结构化语料</p>
+              <ul class="reference-hero-points">
+                <li>生成主题结构</li>
+                <li>专家过程监督</li>
+                <li>生成成文章节点</li>
+              </ul>
+              <div class="reference-hero-actions">
+                <button class="reference-primary-action" type="button" data-reference-target="demo-overview">查看结构</button>
+                <a class="reference-secondary-action" href="${escapeHtml(sociologyHref)}" data-reference-map-link>进入地图</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="reference-hero-spacer" aria-hidden="true"></div>
+      </section>
+
+      <section class="reference-intro" id="demo-overview" data-reference-section>
+        <div class="reference-container reference-intro-grid reference-reveal" data-reference-reveal>
+          <div class="reference-intro-copy">
+            <h2>每个<span class="reference-heading-accent">主题</span>都有多种深入方式</h2>
+            <div class="reference-intro-body">
+              <p>Agent 负责展开可能性，由领域专家负责审阅结构是否完整、准确</p>
+              <ul class="reference-intro-list">
+                <li>广泛生成候选结构</li>
+                <li>持续监督生成过程</li>
+                <li>确认可继续细分的路径</li>
+              </ul>
+            </div>
+            <a class="reference-primary-action" href="${escapeHtml(sociologyHref)}" data-reference-map-link>进入社会学地图</a>
+          </div>
+          <figure class="reference-intro-media">
+            <button class="reference-media-button" type="button" data-reference-image aria-label="放大查看社会学主题结构图">
+              <img src="./demo-assets/sociology-overview-branches.png" alt="社会学由学科史、细分领域、理论传统等六个方向展开的主题结构图" decoding="async" />
+            </button>
+          </figure>
+        </div>
+      </section>
+
+      <section class="reference-works">
+        <div class="reference-container">
+          <div class="reference-projects">
+            <article class="reference-project reference-reveal" id="demo-detail" data-reference-section data-reference-reveal>
+              <figure class="reference-project-media reference-project-media-pager" data-reference-pager>
+                <button class="reference-media-button" type="button" data-reference-image aria-label="放大查看社会学学科史结构地图">
+                  <img data-reference-pager-image src="./demo-assets/sociology-discipline-history.png" alt="从学科史展开的多层级社会学结构地图" loading="lazy" decoding="async" />
+                </button>
+                <div class="reference-media-pager" role="group" aria-label="社会学结构地图分页">
+                  <button class="reference-media-page-action" type="button" data-reference-pager-prev aria-label="查看上一张结构图" title="查看上一张结构图">
+                    <span class="reference-media-page-chevron reference-media-page-chevron-previous" aria-hidden="true"></span>
+                  </button>
+                  <div class="reference-media-page-indicators" data-reference-pager-indicators aria-hidden="true">
+                    ${DEMO_DETAIL_MEDIA_PAGES.map((_, index) => `<span class="reference-media-page-indicator${index === 0 ? " is-active" : ""}"></span>`).join("")}
+                  </div>
+                  <span class="reference-media-page-status" data-reference-pager-status aria-live="polite">第 1 张，共 ${DEMO_DETAIL_MEDIA_PAGES.length} 张</span>
+                  <button class="reference-media-page-action" type="button" data-reference-pager-next aria-label="查看下一张结构图" title="查看下一张结构图">
+                    <span class="reference-media-page-chevron reference-media-page-chevron-next" aria-hidden="true"></span>
+                  </button>
+                </div>
+              </figure>
+              <div class="reference-project-copy">
+                <p class="reference-project-label">逐级细分</p>
+                <h3 class="reference-project-heading">每个<span class="reference-heading-accent">节点</span>都可以继续展开</h3>
+                <p class="reference-project-description">总地图提供方向，节点内部的次级结构持续细分，直到抵达具体文章。</p>
+                <div class="reference-project-tags" aria-label="结构层级">
+                  <span>一级视角</span><span>次级结构</span><span>文章节点</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="reference-project reference-reveal" id="demo-article" data-reference-section data-reference-reveal>
+              <figure class="reference-project-media">
+                <button class="reference-media-button" type="button" data-reference-image aria-label="放大查看知识文章页面">
+                  <img src="./demo-assets/generated-article.png" alt="由模型生成并供专家审阅的知识文章" loading="lazy" decoding="async" />
+                </button>
+              </figure>
+              <div class="reference-project-copy">
+                <p class="reference-project-label">文章节点</p>
+                <h3 class="reference-project-heading">根据词条生成的<strong>文章</strong>，形成结构化的<strong>语料库</strong></h3>
+                <p class="reference-project-description">文章由模型加载 Prompt 与 Skill 后生成，再由领域专家进行审阅。</p>
+                <div class="reference-project-tags" aria-label="文章用途">
+                  <span>资料搜索</span><span>结构化内容</span><span>专家审阅</span><span>本地训练</span>
+                </div>
+                <a class="reference-project-link" href="${escapeHtml(DEMO_FEATURED_ARTICLE_HREF)}">阅读《文化与社会》文章</a>
+              </div>
+            </article>
+
+          </div>
+        </div>
+      </section>
+
+      <section class="reference-closing" id="demo-close">
+        <div>
+          <h2><span class="hero-title-main">Seeking.</span><span class="hero-title-sub">Everything.</span></h2>
+          <div class="reference-closing-actions">
+            <a class="reference-primary-action" href="${escapeHtml(sociologyHref)}" data-reference-map-link>进入社会学地图</a>
+            <a class="reference-secondary-action" href="#/disciplines">浏览全部学科</a>
+          </div>
+        </div>
+      </section>
+
+      <dialog class="reference-lightbox" data-reference-lightbox aria-label="图片预览">
+        <div class="reference-lightbox-content">
+          <button class="reference-lightbox-close" type="button" data-reference-lightbox-close>关闭</button>
+          <img data-reference-lightbox-image alt="" />
+          <p data-reference-lightbox-caption></p>
+        </div>
+      </dialog>
+    </main>
+  `;
+
+  app.querySelectorAll(".reference-demo a[href]").forEach((link) => {
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener noreferrer");
+  });
+  bindGlobalHeader();
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  state.demoAnimation = startReferenceDemoAnimation();
+}
+
+function startReferenceDemoAnimation() {
+  const page = app.querySelector(".reference-demo");
+  if (!page) return null;
+
+  const heroWrap = page.querySelector(".reference-hero-wrap");
+  const hero = page.querySelector("[data-reference-hero]");
+  const targetButtons = Array.from(page.querySelectorAll("[data-reference-target]"));
+  const imageButtons = Array.from(page.querySelectorAll("[data-reference-image]"));
+  const detailPager = page.querySelector("[data-reference-pager]");
+  const detailPagerImage = detailPager?.querySelector("[data-reference-pager-image]");
+  const detailPagerPreview = detailPager?.querySelector("[data-reference-image]");
+  const detailPagerStatus = detailPager?.querySelector("[data-reference-pager-status]");
+  const detailPagerIndicators = Array.from(detailPager?.querySelectorAll(".reference-media-page-indicator") ?? []);
+  const detailPagerPreviousButton = detailPager?.querySelector("[data-reference-pager-prev]");
+  const detailPagerNextButton = detailPager?.querySelector("[data-reference-pager-next]");
+  const revealItems = Array.from(page.querySelectorAll("[data-reference-reveal]"));
+  const lightbox = page.querySelector("[data-reference-lightbox]");
+  const lightboxImage = page.querySelector("[data-reference-lightbox-image]");
+  const lightboxCaption = page.querySelector("[data-reference-lightbox-caption]");
+  const lightboxCloseButton = page.querySelector("[data-reference-lightbox-close]");
+  const reducedMotion = DEMO_RESPECT_REDUCED_MOTION
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const lightboxReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const lightboxTransitionDuration = lightboxReducedMotion ? 140 : 240;
+  const detailPagerTransitionDuration = lightboxReducedMotion ? 0 : 140;
+  let animationFrame = 0;
+  let readyFrame = 0;
+  let lightboxFrame = 0;
+  let lightboxTimer = 0;
+  let detailPagerIndex = 0;
+  let detailPagerFrame = 0;
+  let detailPagerTimer = 0;
+
+  const scrollToTarget = (event) => {
+    const targetId = event.currentTarget.getAttribute("data-reference-target");
+    const target = targetId ? document.getElementById(targetId) : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  };
+
+  targetButtons.forEach((button) => button.addEventListener("click", scrollToTarget));
+
+  const setDetailMediaPage = (nextIndex) => {
+    if (!detailPager || !detailPagerImage || !detailPagerPreview || !detailPagerStatus) return;
+
+    detailPagerIndex = (nextIndex + DEMO_DETAIL_MEDIA_PAGES.length) % DEMO_DETAIL_MEDIA_PAGES.length;
+    const detail = DEMO_DETAIL_MEDIA_PAGES[detailPagerIndex];
+
+    if (detailPagerTimer) window.clearTimeout(detailPagerTimer);
+    if (detailPagerFrame) window.cancelAnimationFrame(detailPagerFrame);
+    detailPagerTimer = 0;
+    detailPagerFrame = 0;
+
+    const applyDetailMediaPage = () => {
+      detailPagerTimer = 0;
+      detailPagerImage.src = detail.src;
+      detailPagerImage.alt = detail.alt;
+      detailPagerPreview.setAttribute("aria-label", `放大查看${detail.imageLabel}`);
+      detailPagerStatus.textContent = `第 ${detailPagerIndex + 1} 张，共 ${DEMO_DETAIL_MEDIA_PAGES.length} 张`;
+      detailPagerIndicators.forEach((indicator, index) => {
+        indicator.classList.toggle("is-active", index === detailPagerIndex);
+      });
+
+      if (!detailPagerTransitionDuration) {
+        detailPager.classList.remove("is-switching");
+        return;
+      }
+
+      detailPagerFrame = window.requestAnimationFrame(() => {
+        detailPagerFrame = 0;
+        detailPager.classList.remove("is-switching");
+      });
+    };
+
+    if (!detailPagerTransitionDuration) {
+      applyDetailMediaPage();
+      return;
+    }
+
+    detailPager.classList.add("is-switching");
+    detailPagerTimer = window.setTimeout(applyDetailMediaPage, detailPagerTransitionDuration);
+  };
+
+  const showPreviousDetailMediaPage = () => setDetailMediaPage(detailPagerIndex - 1);
+  const showNextDetailMediaPage = () => setDetailMediaPage(detailPagerIndex + 1);
+
+  detailPagerPreviousButton?.addEventListener("click", showPreviousDetailMediaPage);
+  detailPagerNextButton?.addEventListener("click", showNextDetailMediaPage);
+
+  const finishLightboxClose = () => {
+    lightboxTimer = 0;
+    if (lightbox?.open) lightbox.close();
+  };
+
+  const closeLightbox = () => {
+    if (!lightbox?.open || lightbox.classList.contains("is-closing")) return;
+    if (lightboxFrame) window.cancelAnimationFrame(lightboxFrame);
+    lightboxFrame = 0;
+    lightbox.classList.remove("is-visible");
+    lightbox.classList.add("is-closing");
+    lightboxTimer = window.setTimeout(finishLightboxClose, lightboxTransitionDuration);
+  };
+
+  const openLightbox = (event) => {
+    const image = event.currentTarget.querySelector("img");
+    if (!image || !lightbox || !lightboxImage || !lightboxCaption || lightbox.open) return;
+    if (lightboxTimer) window.clearTimeout(lightboxTimer);
+    lightboxTimer = 0;
+    lightbox.classList.remove("is-visible", "is-closing");
+    lightboxImage.src = image.currentSrc || image.src;
+    lightboxImage.alt = image.alt;
+    lightboxCaption.textContent = image.alt;
+    document.documentElement.classList.add("reference-lightbox-open");
+    lightbox.showModal();
+    lightboxFrame = window.requestAnimationFrame(() => {
+      lightboxFrame = 0;
+      lightbox.classList.add("is-visible");
+    });
+  };
+
+  const closeLightboxFromBackdrop = (event) => {
+    if (event.target === lightbox) closeLightbox();
+  };
+
+  const clearLightboxState = () => {
+    if (lightboxFrame) window.cancelAnimationFrame(lightboxFrame);
+    if (lightboxTimer) window.clearTimeout(lightboxTimer);
+    lightboxFrame = 0;
+    lightboxTimer = 0;
+    lightbox?.classList.remove("is-visible", "is-closing");
+    document.documentElement.classList.remove("reference-lightbox-open");
+  };
+
+  const closeLightboxFromKeyboard = (event) => {
+    event.preventDefault();
+    closeLightbox();
+  };
+
+  imageButtons.forEach((button) => button.addEventListener("click", openLightbox));
+  lightboxCloseButton?.addEventListener("click", closeLightbox);
+  lightbox?.addEventListener("click", closeLightboxFromBackdrop);
+  lightbox?.addEventListener("cancel", closeLightboxFromKeyboard);
+  lightbox?.addEventListener("close", clearLightboxState);
+
+  const smootherStep = (value) => value * value * value * (value * (value * 6 - 15) + 10);
+
+  const update = () => {
+    animationFrame = 0;
+    const viewportHeight = Math.max(window.innerHeight || 0, 1);
+    let heroOpacity = 1;
+
+    if (hero && heroWrap) {
+      const heroRect = heroWrap.getBoundingClientRect();
+      const progress = reducedMotion
+        ? 0
+        : clampNumber((-heroRect.top - 24) / (viewportHeight * 0.82), 0, 1);
+      heroOpacity = 1 - smootherStep(progress);
+    }
+
+    const revealStates = revealItems.map((item) => {
+      const rect = item.getBoundingClientRect();
+      if (reducedMotion) return { item, opacity: 1 };
+      const itemCenter = rect.top + rect.height / 2;
+      const viewportCenter = viewportHeight / 2;
+      const fadeDistance = Math.max(viewportHeight * 0.72, rect.height * 0.55);
+      const visibility = clampNumber(1 - Math.abs(itemCenter - viewportCenter) / fadeDistance, 0, 1);
+      return { item, opacity: smootherStep(visibility) };
+    });
+
+    if (hero) {
+      hero.style.opacity = heroOpacity.toFixed(4);
+      hero.style.transform = "none";
+    }
+
+    revealStates.forEach(({ item, opacity }) => {
+      item.style.opacity = opacity.toFixed(4);
+      item.style.transform = "none";
+    });
+
+  };
+
+  const scheduleUpdate = () => {
+    if (animationFrame) return;
+    animationFrame = window.requestAnimationFrame(update);
+  };
+
+  window.addEventListener("scroll", scheduleUpdate, { passive: true });
+  window.addEventListener("resize", scheduleUpdate);
+  readyFrame = window.requestAnimationFrame(() => page.classList.add("ready"));
+  update();
+
+  return {
+    stop() {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      if (readyFrame) window.cancelAnimationFrame(readyFrame);
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      targetButtons.forEach((button) => button.removeEventListener("click", scrollToTarget));
+      imageButtons.forEach((button) => button.removeEventListener("click", openLightbox));
+      detailPagerPreviousButton?.removeEventListener("click", showPreviousDetailMediaPage);
+      detailPagerNextButton?.removeEventListener("click", showNextDetailMediaPage);
+      lightboxCloseButton?.removeEventListener("click", closeLightbox);
+      lightbox?.removeEventListener("click", closeLightboxFromBackdrop);
+      lightbox?.removeEventListener("cancel", closeLightboxFromKeyboard);
+      lightbox?.removeEventListener("close", clearLightboxState);
+      if (lightboxFrame) window.cancelAnimationFrame(lightboxFrame);
+      if (lightboxTimer) window.clearTimeout(lightboxTimer);
+      if (detailPagerFrame) window.cancelAnimationFrame(detailPagerFrame);
+      if (detailPagerTimer) window.clearTimeout(detailPagerTimer);
+      if (lightbox?.open) lightbox.close();
+      clearLightboxState();
+    },
+  };
+}
+
+function renderDemoPage() {
+  stopHomeAnimation();
+  stopDemoAnimation();
+  document.title = "学科地图 Demo - Seeking";
+  const sociologyHref = getDemoSociologyHref();
+
+  app.innerHTML = `
+    <main class="demo-page demo-page-v2 ${DEMO_RESPECT_REDUCED_MOTION ? "" : "demo-motion-full"}">
+      <header class="demo-header" data-demo-header>
+        <a class="demo-brand" href="#/" aria-label="返回 Seeking 首页">
+          <strong>Seeking.</strong>
+          <span>Everything.</span>
+        </a>
+        <nav class="demo-header-nav" aria-label="Demo 章节导航">
+          <button type="button" data-demo-target="demo-overview">主题结构</button>
+          <button type="button" data-demo-target="demo-detail">逐级细分</button>
+          <button type="button" data-demo-target="demo-article">文章节点</button>
+          <button type="button" data-demo-target="demo-collab">协作方式</button>
+        </nav>
+        <a class="demo-header-cta" href="${escapeHtml(sociologyHref)}" data-demo-map-link>进入地图</a>
+      </header>
+
+      <nav class="demo-section-rail" aria-label="当前章节">
+        <span class="demo-rail-track" aria-hidden="true"><span></span></span>
+        <button type="button" data-demo-target="demo-start" data-demo-nav aria-label="开场">
+          <span class="demo-rail-dot" aria-hidden="true"></span>
+          <span class="demo-rail-label">开场</span>
+        </button>
+        <button type="button" data-demo-target="demo-overview" data-demo-nav aria-label="主题结构">
+          <span class="demo-rail-dot" aria-hidden="true"></span>
+          <span class="demo-rail-label">结构</span>
+        </button>
+        <button type="button" data-demo-target="demo-detail" data-demo-nav aria-label="逐级细分">
+          <span class="demo-rail-dot" aria-hidden="true"></span>
+          <span class="demo-rail-label">细分</span>
+        </button>
+        <button type="button" data-demo-target="demo-article" data-demo-nav aria-label="文章节点">
+          <span class="demo-rail-dot" aria-hidden="true"></span>
+          <span class="demo-rail-label">文章</span>
+        </button>
+        <button type="button" data-demo-target="demo-collab" data-demo-nav aria-label="协作方式">
+          <span class="demo-rail-dot" aria-hidden="true"></span>
+          <span class="demo-rail-label">协作</span>
+        </button>
+      </nav>
+
+      <section class="demo-hero" id="demo-start" data-demo-section>
+        <div class="demo-hero-sticky">
+          <div class="demo-hero-grid">
+            <div class="demo-hero-content">
+              <p class="demo-hero-context">Structured knowledge / 学科地图</p>
+              <h1 aria-label="Seeking. Everything.">
+                <span class="demo-title-line">Seeking.</span>
+                <span class="demo-title-line demo-title-accent">Everything.</span>
+              </h1>
+              <p class="demo-hero-lede">从主题结构出发，逐级抵达可阅读、可审阅、可继续训练的知识文章。</p>
+              <div class="demo-hero-actions">
+                <button class="demo-primary-action" type="button" data-demo-target="demo-overview">查看结构</button>
+                <a class="demo-secondary-action" href="${escapeHtml(sociologyHref)}" data-demo-map-link>进入社会学地图</a>
+              </div>
+              <div class="demo-hero-points" aria-label="Demo 内容概览">
+                <span><strong>01</strong>多角度结构</span>
+                <span><strong>02</strong>逐级细分</span>
+                <span><strong>03</strong>人机协作</span>
+              </div>
+            </div>
+            <figure class="demo-hero-visual demo-interactive-visual" data-demo-visual>
+              <div class="demo-visual-frame">
+                <img class="demo-hero-media" src="./demo-assets/sociology-overview.png" alt="社会学学科地图总览" />
+              </div>
+              <figcaption><span>01</span> 社会学主题总览</figcaption>
+            </figure>
+          </div>
+          <button class="demo-scroll-cue" type="button" data-demo-target="demo-overview">继续浏览</button>
+        </div>
+      </section>
+
+      <div class="demo-marquee" aria-hidden="true">
+        <div class="demo-marquee-track">
+          <span>结构生成</span><span>专家审阅</span><span>文章节点</span><span>知识训练</span><span>高级搜索</span>
+          <span>结构生成</span><span>专家审阅</span><span>文章节点</span><span>知识训练</span><span>高级搜索</span>
+        </div>
+      </div>
+
+      <section class="demo-story-step demo-story-dark" id="demo-overview" data-demo-section>
+        <div class="demo-story-sticky">
+          <div class="demo-story-grid">
+            <figure class="demo-story-visual demo-interactive-visual" data-demo-visual>
+              <div class="demo-visual-frame">
+                <img src="./demo-assets/sociology-overview.png" alt="社会学从六个主要视角展开的学科地图" />
+              </div>
+              <figcaption><span>01</span> 六个主要理解视角</figcaption>
+            </figure>
+            <div class="demo-story-copy" data-demo-copy>
+              <p class="demo-section-label" data-demo-reveal>01 / 主题结构</p>
+              <h2 data-demo-reveal>一个主题，可以有多种进入方式</h2>
+              <p class="demo-story-lede" data-demo-reveal>学科史、细分领域、理论传统、代表学者、经典文本与当代议题，共同构成理解社会学的第一张结构图。</p>
+              <p data-demo-reveal>这些视角可由 Agent 广泛生成，再交给熟悉领域的人审阅。AI 负责展开可能性，人负责判断结构是否完整、准确、有用。</p>
+              <blockquote class="demo-principle" data-demo-reveal>「生成」负责展开，「过程监督」负责校准。</blockquote>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-story-step demo-story-light" id="demo-detail" data-demo-section>
+        <div class="demo-story-sticky">
+          <div class="demo-story-grid demo-story-reverse">
+            <figure class="demo-story-visual demo-story-visual-tall demo-interactive-visual" data-demo-visual>
+              <div class="demo-visual-frame">
+                <img src="./demo-assets/sociology-subfields.png" alt="社会学细分领域继续展开的目录地图" />
+              </div>
+              <figcaption><span>02</span> 节点内部继续细分</figcaption>
+            </figure>
+            <div class="demo-story-copy" data-demo-copy>
+              <p class="demo-section-label" data-demo-reveal>02 / 逐级细分</p>
+              <h2 data-demo-reveal>每个节点，都可以继续展开</h2>
+              <p class="demo-story-lede" data-demo-reveal>一张总地图提供方向，节点内部的次级结构继续提供路径，直到抵达具体的文章节点。</p>
+              <ol class="demo-level-list">
+                <li data-demo-reveal><strong>一级视角</strong><span>确定理解主题的主要入口</span></li>
+                <li data-demo-reveal><strong>次级结构</strong><span>保留上下文关系并持续细分</span></li>
+                <li data-demo-reveal><strong>文章节点</strong><span>承载可阅读、可引用的完整内容</span></li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-story-step demo-story-dark demo-article-step" id="demo-article" data-demo-section>
+        <div class="demo-story-sticky">
+          <div class="demo-story-grid">
+            <figure class="demo-story-visual demo-article-visual demo-interactive-visual" data-demo-visual>
+              <div class="demo-visual-frame">
+                <img src="./demo-assets/generated-article.png" alt="由模型生成并可供专家审阅的知识文章页面" />
+              </div>
+              <figcaption><span>03</span> 可阅读、可审阅的文章节点</figcaption>
+            </figure>
+            <div class="demo-story-copy" data-demo-copy>
+              <p class="demo-section-label" data-demo-reveal>03 / 文章节点</p>
+              <h2 data-demo-reveal>结构最终落到可阅读的文章</h2>
+              <p class="demo-story-lede" data-demo-reveal>文章由 GPT-5.5 Thinking Harvey 加载 Prompt 与 Skill 后生成，再由有经验的人进行审阅。</p>
+              <ol class="demo-article-points">
+                <li data-demo-reveal>广泛、细致地搜索相关资料，再经过思考形成结构化内容。</li>
+                <li data-demo-reveal>专家可审阅文章与结构，完成生成和过程监督的协作。</li>
+                <li data-demo-reveal>完整作品本质上是一套围绕指定主题建立的结构化数据库。</li>
+                <li data-demo-reveal>数据库既可作为高级搜索入口，也可用于后续的本地模型训练。</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-story-step demo-story-light demo-collab" id="demo-collab" data-demo-section>
+        <div class="demo-story-sticky">
+          <div class="demo-story-grid demo-story-reverse">
+            <figure class="demo-story-visual demo-interactive-visual" data-demo-visual>
+              <div class="demo-visual-frame">
+                <img src="./demo-assets/sociology-overview.png" alt="用于生成与专家审阅协作的社会学知识结构" />
+              </div>
+              <figcaption><span>04</span> 生成与过程监督协作</figcaption>
+            </figure>
+            <div class="demo-story-copy demo-collab-copy" data-demo-copy>
+              <p class="demo-section-label" data-demo-reveal>04 / 协作方式</p>
+              <h2 data-demo-reveal><span>Agent 生成</span><span>专家审阅</span></h2>
+              <p class="demo-story-lede" data-demo-reveal>Agent 与 Skill 承担资料搜索、结构整理和初稿生成，领域专家持续审阅层级与内容。</p>
+              <div class="demo-role-switch" role="tablist" aria-label="协作角色" data-demo-reveal>
+                <button type="button" role="tab" data-demo-role="agent" aria-selected="true">Agent + Skill</button>
+                <button type="button" role="tab" data-demo-role="expert" aria-selected="false">领域专家</button>
+              </div>
+              <p class="demo-role-detail" data-demo-role-detail data-demo-reveal>搜索资料、整理结构、生成初稿，并保留可追溯的生成过程。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-closing" id="demo-close" data-demo-section>
+        <div>
+          <p>Seeking.</p>
+          <h2>Everything.</h2>
+          <div class="demo-closing-actions">
+            <a href="${escapeHtml(sociologyHref)}" data-demo-map-link>进入社会学地图</a>
+            <a href="#/disciplines">浏览全部学科</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  `;
+
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  state.demoAnimation = startDemoAnimation();
+}
+
+function stopDemoAnimation() {
+  if (!state.demoAnimation) return;
+  state.demoAnimation.stop();
+  state.demoAnimation = null;
+}
+
+function startDemoAnimation() {
+  const page = app.querySelector(".demo-page");
+  if (!page) return null;
+
+  const header = page.querySelector("[data-demo-header]");
+  const hero = page.querySelector(".demo-hero");
+  const sections = Array.from(page.querySelectorAll("[data-demo-section]"));
+  const storySteps = Array.from(page.querySelectorAll(".demo-story-step"));
+  const targetButtons = Array.from(page.querySelectorAll("[data-demo-target]"));
+  const mapLinks = Array.from(page.querySelectorAll("[data-demo-map-link]"));
+  const railButtons = Array.from(page.querySelectorAll("[data-demo-nav]"));
+  const interactiveVisuals = Array.from(page.querySelectorAll("[data-demo-visual]"));
+  const roleButtons = Array.from(page.querySelectorAll("[data-demo-role]"));
+  const roleDetail = page.querySelector("[data-demo-role-detail]");
+  const reducedMotion = DEMO_RESPECT_REDUCED_MOTION
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let animationFrame = 0;
+  let readyFrame = 0;
+  let readyInnerFrame = 0;
+
+  const scrollToTarget = (event) => {
+    const targetId = event.currentTarget.getAttribute("data-demo-target");
+    const target = targetId ? document.getElementById(targetId) : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  };
+
+  const openSociologyMap = (event) => {
+    const href = event.currentTarget.getAttribute("href");
+    if (!href) return;
+    event.preventDefault();
+    state.language = "cn";
+    window.location.hash = href;
+  };
+
+  targetButtons.forEach((button) => button.addEventListener("click", scrollToTarget));
+  mapLinks.forEach((link) => link.addEventListener("click", openSociologyMap));
+
+  const roleDescriptions = {
+    agent: "搜索资料、整理结构、生成初稿，并保留可追溯的生成过程。",
+    expert: "审阅层级、校准观点、确认文章，并持续监督生成过程。",
+  };
+
+  const selectRole = (event) => {
+    const role = event.currentTarget.getAttribute("data-demo-role");
+    if (!role || !roleDescriptions[role]) return;
+    roleButtons.forEach((button) => {
+      button.setAttribute("aria-selected", button === event.currentTarget ? "true" : "false");
+    });
+    if (roleDetail) roleDetail.textContent = roleDescriptions[role];
+  };
+
+  roleButtons.forEach((button) => button.addEventListener("click", selectRole));
+
+  const pointerHandlers = interactiveVisuals.map((visual) => {
+    const move = (event) => {
+      const rect = visual.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = clampNumber((event.clientX - rect.left) / rect.width * 2 - 1, -1, 1);
+      const y = clampNumber((event.clientY - rect.top) / rect.height * 2 - 1, -1, 1);
+      visual.style.setProperty("--demo-pointer-x", x.toFixed(3));
+      visual.style.setProperty("--demo-pointer-y", y.toFixed(3));
+    };
+    const leave = () => {
+      visual.style.setProperty("--demo-pointer-x", "0");
+      visual.style.setProperty("--demo-pointer-y", "0");
+    };
+    if (!reducedMotion) {
+      visual.addEventListener("pointermove", move);
+      visual.addEventListener("pointerleave", leave);
+    }
+    return { visual, move, leave };
+  });
+
+  const update = () => {
+    animationFrame = 0;
+    const viewportHeight = Math.max(window.innerHeight || 0, 1);
+    const compactLayout = window.innerWidth <= 900;
+    const pageScrollRange = Math.max(document.documentElement.scrollHeight - viewportHeight, 1);
+    const pageProgress = clampNumber(window.scrollY / pageScrollRange, 0, 1);
+    page.style.setProperty("--demo-page-progress", pageProgress.toFixed(4));
+    header?.classList.toggle("scrolled", window.scrollY > 24);
+
+    if (hero) {
+      const heroRect = hero.getBoundingClientRect();
+      const heroScrollRange = Math.max(heroRect.height - viewportHeight, 1);
+      const heroProgress = clampNumber(-heroRect.top / heroScrollRange, 0, 1);
+      const heroOpacity = reducedMotion ? 1 : Math.max(0.1, 1 - heroProgress * heroProgress * 0.9);
+      const heroShift = reducedMotion ? 0 : heroProgress * 150;
+      const heroScale = reducedMotion ? 1 : 1 - heroProgress * 0.05;
+      hero.style.setProperty("--demo-hero-progress", heroProgress.toFixed(4));
+      hero.style.setProperty("--demo-hero-opacity", heroOpacity.toFixed(4));
+      hero.style.setProperty("--demo-hero-shift", `${heroShift.toFixed(2)}px`);
+      hero.style.setProperty("--demo-hero-scale", heroScale.toFixed(4));
+    }
+
+    storySteps.forEach((step) => {
+      const rect = step.getBoundingClientRect();
+      const entry = clampNumber((viewportHeight - rect.top) / (viewportHeight * 0.9), 0, 1);
+      const sceneScrollRange = Math.max(rect.height - viewportHeight, 1);
+      const progress = compactLayout ? 0 : clampNumber(-rect.top / sceneScrollRange, 0, 1);
+      const exit = compactLayout ? 0 : clampNumber((progress - 0.68) / 0.32, 0, 1);
+      const visibility = reducedMotion ? 1 : entry * (1 - exit * 0.94);
+      const reverse = Boolean(step.querySelector(".demo-story-reverse"));
+      const direction = reverse ? 1 : -1;
+      const sceneShift = reducedMotion ? 0 : exit * -44;
+      const mediaShift = reducedMotion ? 0 : direction * ((1 - entry) * 96 + exit * -52);
+      const copyShift = reducedMotion ? 0 : (1 - entry) * 72 + exit * -34;
+      const mediaScale = reducedMotion ? 1 : 1.055 - entry * 0.055 + exit * 0.025;
+      const mediaClip = reducedMotion ? 0 : (1 - entry) * 16;
+      const sticky = step.querySelector(".demo-story-sticky");
+      const visual = step.querySelector("[data-demo-visual]");
+      const copy = step.querySelector("[data-demo-copy]");
+      sticky?.style.setProperty("--demo-scene-opacity", visibility.toFixed(4));
+      sticky?.style.setProperty("--demo-scene-shift", `${sceneShift.toFixed(2)}px`);
+      visual?.style.setProperty("--demo-media-x", `${mediaShift.toFixed(2)}px`);
+      visual?.style.setProperty("--demo-media-scale", mediaScale.toFixed(4));
+      visual?.style.setProperty("--demo-media-clip", `${mediaClip.toFixed(2)}%`);
+      copy?.style.setProperty("--demo-copy-shift", `${copyShift.toFixed(2)}px`);
+
+      Array.from(step.querySelectorAll("[data-demo-reveal]")).forEach((item, index) => {
+        const stagger = Math.min(index * 0.075, 0.45);
+        const reveal = reducedMotion
+          ? 1
+          : clampNumber((entry - stagger) / Math.max(1 - stagger, 0.01), 0, 1) * (1 - exit * 0.82);
+        item.style.setProperty("--demo-item-progress", reveal.toFixed(4));
+      });
+    });
+
+    let activeSectionId = "demo-start";
+    let closestDistance = Number.POSITIVE_INFINITY;
+    sections.forEach((section) => {
+      const rect = section.getBoundingClientRect();
+      const distance = Math.abs(rect.top + rect.height * 0.5 - viewportHeight * 0.5);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        activeSectionId = section.id;
+      }
+    });
+
+    railButtons.forEach((button) => {
+      const active = button.getAttribute("data-demo-target") === activeSectionId;
+      button.classList.toggle("active", active);
+      if (active) button.setAttribute("aria-current", "true");
+      else button.removeAttribute("aria-current");
+    });
+
+    targetButtons.forEach((button) => {
+      if (button.hasAttribute("data-demo-nav")) return;
+      button.classList.toggle("active", button.getAttribute("data-demo-target") === activeSectionId);
+    });
+  };
+
+  const scheduleUpdate = () => {
+    if (animationFrame) return;
+    animationFrame = window.requestAnimationFrame(update);
+  };
+
+  window.addEventListener("scroll", scheduleUpdate, { passive: true });
+  window.addEventListener("resize", scheduleUpdate);
+  readyFrame = window.requestAnimationFrame(() => {
+    readyInnerFrame = window.requestAnimationFrame(() => {
+      page.classList.add("demo-ready");
+      scheduleUpdate();
+    });
+  });
+  update();
+
+  return {
+    stop() {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      if (readyFrame) window.cancelAnimationFrame(readyFrame);
+      if (readyInnerFrame) window.cancelAnimationFrame(readyInnerFrame);
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      targetButtons.forEach((button) => button.removeEventListener("click", scrollToTarget));
+      mapLinks.forEach((link) => link.removeEventListener("click", openSociologyMap));
+      roleButtons.forEach((button) => button.removeEventListener("click", selectRole));
+      pointerHandlers.forEach(({ visual, move, leave }) => {
+        visual.removeEventListener("pointermove", move);
+        visual.removeEventListener("pointerleave", leave);
+      });
+    },
+  };
 }
 
 function getTopicLocationText(topic, label) {
@@ -1426,11 +2192,7 @@ function renderHomeGroupPage(groupId) {
           ${parentTopic ? renderToolbarBackLink(parentTopic) : renderToolbarBackToSubjectsLink()}
           ${renderToolbarHomeLink("#/disciplines")}
         </div>
-        <div class="subject-map-title">${escapeHtml(getLocalizedTitleText(group.title))}</div>
         <div class="toolbar-actions">
-          <div class="segmented" aria-label="${escapeHtml(t("mapPerspective"))}">
-            <button class="active" type="button">${escapeHtml(t("directoryMap"))}</button>
-          </div>
           ${renderThemeControls()}
         </div>
       </section>
@@ -2612,8 +3374,12 @@ function getAllNodeIdsInTree(rootId) {
   return allIds;
 }
 
+function shouldRenderEmptyNodeAsGray(node) {
+  return SHOW_EMPTY_NODES_AS_GRAY && Boolean(node?.disabled);
+}
+
 function getMindNodeColor(node, assignedColors) {
-  if (node.disabled) return "#6d7480";
+  if (shouldRenderEmptyNodeAsGray(node)) return "#6d7480";
   if (node.type === "subject") return "#bfd76a";
   return assignedColors?.get(node.id) || "hsl(0, 95%, 70%)";
 }
@@ -2947,6 +3713,7 @@ function doRenderGraph(subject) {
     const nodeDelay = 0;
     const isArticle = node.type === "article";
     const isDisabled = Boolean(node.disabled);
+    const isDimmedEmpty = shouldRenderEmptyNodeAsGray(node);
     const isUnavailableLeaf = isDisabled && !hasChildren;
     const isLink = Boolean(node.href) && !isDisabled;
     const tagName = isArticle || isLink ? "a" : "button";
@@ -2971,7 +3738,7 @@ function doRenderGraph(subject) {
 
     nodes.push(`
       <${tagName}
-        class="mind-node node-${node.type} ${hasChildren ? "has-children" : ""} ${isActiveNode ? "active" : ""} ${isEntering ? "entering" : ""} ${isMoving ? "moving" : ""} ${isDisabled ? "disabled" : ""}"
+        class="mind-node node-${node.type} ${hasChildren ? "has-children" : ""} ${isActiveNode ? "active" : ""} ${isEntering ? "entering" : ""} ${isMoving ? "moving" : ""} ${isDisabled ? "disabled" : ""} ${isDimmedEmpty ? "empty-muted" : ""}"
         ${actionAttributes}
         data-node="${escapeHtml(node.id)}"
         data-depth="${node.depth || 0}"
