@@ -1389,7 +1389,7 @@ function renderReferenceDemoPage() {
               </figure>
               <div class="reference-project-copy">
                 <p class="reference-project-label">逐级细分</p>
-                <h3 class="reference-project-heading">每个<span class="reference-heading-accent">节点</span>都可以继续展开</h3>
+                <h3 class="reference-project-heading"><span class="reference-heading-line">每个<span class="reference-heading-accent">节点</span></span><span class="reference-heading-line">都可以继</span><span class="reference-heading-line">续展开</span></h3>
                 <p class="reference-project-description">总地图提供方向，节点内部的次级结构持续细分，直到抵达具体文章。</p>
                 <div class="reference-project-tags" aria-label="结构层级">
                   <span>一级视角</span><span>次级结构</span><span>文章节点</span>

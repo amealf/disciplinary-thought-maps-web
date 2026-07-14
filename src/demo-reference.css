@@ -488,6 +488,11 @@ body:has(.reference-demo) {
   color: #60a5fa;
 }
 
+.reference-heading-line {
+  display: block;
+  white-space: nowrap;
+}
+
 .reference-intro-body {
   display: grid;
   gap: 16px;
@@ -1128,6 +1133,10 @@ body:has(.reference-demo) {
   line-height: 1.13;
   letter-spacing: -0.035em;
   text-wrap: balance;
+}
+
+.reference-project h3.reference-project-heading {
+  font-weight: 600;
 }
 
 .reference-intro-body {
