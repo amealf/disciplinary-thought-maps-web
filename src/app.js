@@ -1388,7 +1388,6 @@ function renderReferenceDemoPage() {
                 </div>
               </figure>
               <div class="reference-project-copy">
-                <p class="reference-project-label">逐级细分</p>
                 <h3 class="reference-project-heading"><span class="reference-heading-line">每个<span class="reference-heading-accent">节点</span></span><span class="reference-heading-line">都可以继</span><span class="reference-heading-line">续展开</span></h3>
                 <p class="reference-project-description">总地图提供方向，节点内部的次级结构持续细分，直到抵达具体文章。</p>
                 <div class="reference-project-tags" aria-label="结构层级">
@@ -1404,8 +1403,7 @@ function renderReferenceDemoPage() {
                 </button>
               </figure>
               <div class="reference-project-copy">
-                <p class="reference-project-label">文章节点</p>
-                <h3 class="reference-project-heading">根据词条生成的<strong>文章</strong>，形成结构化的<strong>语料库</strong></h3>
+                <h3 class="reference-project-heading">根据词条生成的<span class="reference-heading-accent">文章</span>，形成结构化的<span class="reference-heading-accent">语料库</span></h3>
                 <p class="reference-project-description">文章由模型加载 Prompt 与 Skill 后生成，再由领域专家进行审阅。</p>
                 <div class="reference-project-tags" aria-label="文章用途">
                   <span>资料搜索</span><span>结构化内容</span><span>专家审阅</span><span>本地训练</span>
