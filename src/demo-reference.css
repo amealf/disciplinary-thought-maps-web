@@ -482,6 +482,17 @@ body:has(.reference-demo) {
 .reference-project h3.reference-project-heading strong {
   color: inherit;
   font-weight: 900;
+  -webkit-text-stroke: 0.012em currentColor;
+  paint-order: stroke fill;
+}
+
+#demo-article .reference-project-heading {
+  font-weight: 500;
+}
+
+#demo-article .reference-project-heading strong {
+  font-weight: 900;
+  -webkit-text-stroke-width: 0.016em;
 }
 
 .reference-heading-accent {
